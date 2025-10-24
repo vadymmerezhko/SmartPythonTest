@@ -2,6 +2,12 @@ import inspect
 import re
 import tkinter as tk
 from tkinter import simpledialog
+from pynput import keyboard
+import time
+import utils.keyboard_utils as ku
+from utils.web_utils import (get_hovered_element_locator, highlight_element,
+                             reset_element_style, get_unique_css_selector,
+                             compare_locators_geometry)
 import pathlib
 
 # Global cache for runtime locator fixes
@@ -120,10 +126,16 @@ class SmartLocator:
         root.withdraw()
         new_selector = simpledialog.askstring(
             "Locator not found",
-            f"Locator '{self.selector}' failed.\nEnter new locator for '{self.cache_key}':"
+            f"Locator '{self.selector}' failed.\n"
+            f"Enter new locator for '{self.cache_key}'\n"
+            "Or press OK button, select element on the page\n"
+            "and press Ctrl button."
         )
+
+        new_selector = self.get_element_locator_string(new_selector)
+
         if not new_selector:
-            raise RuntimeError("No replacement locator provided.")
+            raise RuntimeError("Record mode interrupted by user.")
 
         # Update this instance
         self.selector = new_selector
@@ -157,3 +169,42 @@ class SmartLocator:
             print(f"[SmartLocator] File updated: {path} ({self.cache_key} → {new_selector})")
         else:
             print(f"[SmartLocator] Warning: could not patch {self.cache_key} in {path}")
+
+    def get_element_locator_string(self, new_selector):
+        """
+        Selects element on the screen and returns it's unique string locator
+        if input selector string is empty.
+
+        Args:
+            new_selector (str): The new selector string entered by user.
+        """
+        last_locator = None
+
+        while new_selector == "":
+            try:
+                selected_locator = get_hovered_element_locator(self.page)
+                locator_string = get_unique_css_selector(selected_locator)
+
+                # If it's a new element under cursor
+                if not compare_locators_geometry(selected_locator, last_locator):
+
+                    if last_locator is not None:
+                        reset_element_style(last_locator, last_original_style)
+
+                    last_original_style = highlight_element(selected_locator)
+                    last_locator = selected_locator
+
+                time.sleep(0.1)
+                pressed_key = ku.get_last_pressed_key()
+
+                if pressed_key == keyboard.Key.esc:
+                    return None
+
+                if pressed_key == keyboard.Key.ctrl_l or pressed_key == keyboard.Key.ctrl_r:
+
+                    if locator_string:
+                        new_selector = locator_string
+            except Exception:
+                continue
+
+        return new_selector

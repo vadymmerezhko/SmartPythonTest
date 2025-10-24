@@ -34,14 +34,26 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps
 
-      # Run pytest
-      - name: Run tests with pytest
+      # Run pytest unit tests
+      - name: Run unit tests with pytest
         run: |
-          pytest --html=reports/report.html --self-contained-html -v
+          pytest tests/e2e --html=reports/unit/report.html --self-contained-html -v
 
-      # Upload HTML report as GitHub artifact
-      - name: Upload test report
+      # Run pytest E2E tesst
+      - name: Run E2E tests with pytest
+        run: |
+          pytest tests/e2e --html=reports/e2e/report.html --self-contained-html -v
+
+      # Upload HTML unit test report as GitHub artifact
+      - name: Upload unit test report
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report
-          path: reports/report.html
+          path: reports/unit/report.html
+
+      # Upload HTML E2E test report as GitHub artifact
+      - name: Upload E2E test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: reports/e2e/report.html
