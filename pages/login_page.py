@@ -1,15 +1,17 @@
 from playwright.sync_api import Page, expect
+from wrappers.smart_locator import SmartLocator
+
 
 class LoginPage:
-    URL = "https://www.saucedemo.com/"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page, config: dict):
         self.page = page
+        self.config = config
+        self.URL = config["demo_base_url"]
         # Selectors
-        self.username_input = page.locator("#user-name")
-        self.password_input = page.locator("#password")
-        self.login_button = page.locator("#login-button")
-        self.error_message = page.locator('h3[data-test="error"]')
+        self.username_input = SmartLocator(self, "#user-name")
+        self.password_input = SmartLocator(self, "#password")
+        self.login_button = SmartLocator(self, "#login-button")
 
     def goto(self):
         self.page.goto(self.URL)
