@@ -1,0 +1,47 @@
+name: Python Playwright Tests
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - feature**
+  pull_request:
+    branches:
+      - main
+      - dev
+      - feature**
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'   # or 3.12/3.13 depending on your project
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps
+
+      # Run pytest
+      - name: Run tests with pytest
+        run: |
+          pytest --html=reports/report.html --self-contained-html -v
+
+      # Upload HTML report as GitHub artifact
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: reports/report.html

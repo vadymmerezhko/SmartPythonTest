@@ -1,0 +1,6 @@
+pytest>=7.0.0
+pytest-playwright>=0.3.0
+playwright>=1.46.0
+pytest-xdist>=3.6.0      # optional: parallel test execution
+pytest-html>=3.2.0       # for HTML reports
+pytest-xdist>=3.6.0      # optional: parallel test execution
