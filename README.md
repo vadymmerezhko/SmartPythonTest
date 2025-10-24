@@ -1,6 +1,6 @@
 # Playwright Python Project
 
-Version: **0.1.6**
+Version: **0.1.8**
 
 This project uses [Playwright](https://playwright.dev/python/) for end-to-end testing of web applications.  
 It is written in Python and provides a foundation for building reliable, fast, and maintainable UI tests.
@@ -86,4 +86,14 @@ It is written in Python and provides a foundation for building reliable, fast, a
 12. Run tests in headed mode (see the browser window):
 
    ```bash
-   browser = playwright_instance.chromium.launch(headless=False)
+   pytest --headed
+
+13. Run tests in record mode for debug purpose:
+
+   ```bash
+   pytest --record_mode=true
+   
+13. Run tests on specific base URL:
+
+   ```bash
+   pytest --base-url=https://staging.saucedemo.com/

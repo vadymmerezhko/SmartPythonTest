@@ -7,25 +7,41 @@ with open("config.json") as f:
     CONFIG = json.load(f)
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--record_mode",
+        action="store",
+        choices=["true", "false"],
+        help="Override record_mode from config.json"
+    )
+    parser.addoption(
+        "--username",
+        action="store",
+        help="Custom username override"
+    )
+
+
 @pytest.fixture(scope="session")
 def config(pytestconfig):
     cfg = CONFIG.copy()
 
     # Built-in pytest-playwright options
-    base_url = pytestconfig.getoption("base_url")
     browser = pytestconfig.getoption("browser")
     headed = pytestconfig.getoption("headed")
 
-    if base_url:
-        cfg["demo_base_url"] = base_url
     if browser:
         cfg["browser"] = browser
 
     # pytest-playwright uses --headed (default False)
     cfg["headless"] = not headed
 
-    # Custom options (only if you add them with pytest_addoption)
-    username = getattr(pytestconfig.option, "username", None)
+    # Custom: record_mode override
+    record_mode = pytestconfig.getoption("record_mode")
+    if record_mode is not None:
+        cfg["record_mode"] = record_mode.lower() == "true"
+
+    # Custom: username override
+    username = pytestconfig.getoption("username")
     if username:
         cfg["username"] = username
 
