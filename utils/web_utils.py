@@ -1,4 +1,7 @@
+import time
 import pyautogui
+from pynput import keyboard
+import utils.keyboard_utils as ku
 from playwright.sync_api import Page, Locator
 
 
@@ -120,3 +123,100 @@ def compare_locators_geometry(locator1: Locator, locator2: Locator, tolerance: f
             return False
 
     return True
+
+def select_element_on_page(page):
+    """
+    Continuously watches the currently hovered element on the page,
+    highlights it, and waits for user input to confirm or cancel.
+
+    Workflow:
+    1. Tracks the locator under the mouse cursor (using :hover).
+    2. If the hovered element changes:
+       - Removes highlight from the old element.
+       - Applies a red border highlight to the new element.
+    3. Waits for keyboard input:
+       - ESC → cancels the selection and returns None.
+       - CTRL (left or right) → confirms the currently highlighted element and returns it.
+    4. Keeps looping until the user presses one of the above keys.
+
+    Args:
+        page (Page): Playwright Page object to interact with the DOM.
+
+    Returns:
+        Locator | None:
+            - The Playwright Locator of the confirmed element if CTRL is pressed.
+            - None if ESC is pressed or no element is confirmed.
+
+    Notes:
+        - This function relies on pynput keyboard events to capture key presses.
+        - The highlighted element's original style is restored when the cursor moves.
+        - Runs an infinite loop until the user explicitly cancels or confirms selection.
+    """
+    last_locator = None
+    last_original_style = None
+
+    while True:
+        try:
+            # Get the element currently under the mouse cursor
+            selected_locator = get_hovered_element_locator(page)
+
+            # If the hovered element has changed, update highlight
+            if not compare_locators_geometry(selected_locator, last_locator):
+
+                if last_locator is not None:
+                    reset_element_style(last_locator, last_original_style)
+
+                last_original_style = highlight_element(selected_locator)
+                last_locator = selected_locator
+
+            # Small delay to avoid busy loop
+            time.sleep(0.1)
+
+            # Check last pressed key
+            pressed_key = ku.get_last_pressed_key()
+
+            if pressed_key == keyboard.Key.esc:
+                # Cancel selection
+                return None
+
+            if pressed_key in (keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
+                # Confirm current selection
+                return selected_locator
+
+        except Exception:
+            # If hovering or style reset fails, retry
+            continue
+
+    return None
+
+
+def get_element_value_or_text(locator):
+    """
+    Safely retrieves the most meaningful textual or value content from a Playwright locator.
+
+    Args:
+        locator (Locator): A Playwright Locator pointing to a DOM element.
+
+    Returns:
+        str | None:
+            - A string containing the element's value or text.
+            - An empty string "" if the element exists but has no text/value.
+            - None if no method succeeds (e.g. element is detached or not resolvable).
+    """
+    value = None
+
+    try:
+        # For inputs/textareas/selects
+        value = locator.input_value()
+    except Exception:
+        try:
+            # For visible textual content
+            value = locator.inner_text()
+        except Exception:
+            try:
+                # For raw text content (including invisible text)
+                value = locator.text_content()
+            except Exception:
+                pass
+
+    return value

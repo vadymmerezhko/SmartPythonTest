@@ -1,13 +1,243 @@
-from playwright.sync_api import expect as playwright_expect
+# wrappers/smart_expect.py
+
+import inspect
+import pathlib
+import re
+import tkinter as tk
+from tkinter import simpledialog
+from playwright.sync_api import expect as pw_expect, Page, Locator, APIResponse
 from wrappers.smart_locator import SmartLocator
+from utils.web_utils import (select_element_on_page, get_element_value_or_text)
+
+# Safe import for pynput.keyboard (may fail in headless CI)
+try:
+    from pynput import keyboard
+    GUI_AVAILABLE = True
+except Exception:
+    GUI_AVAILABLE = False
+
+FIXED_EXPECTS = {}
 
 
-def expect(target):
+class SmartExpectProxy:
+    def __init__(self, actual):
+        # unwrap SmartLocator
+        if isinstance(actual, SmartLocator):
+            self.page = actual.page
+            unwrapped = actual.locator   # <-- pass underlying Locator
+        elif isinstance(actual, Locator):
+            self.page = actual.page
+            unwrapped = actual
+        elif isinstance(actual, Page):
+            self.page = actual
+            unwrapped = actual
+        elif isinstance(actual, APIResponse):
+            self.page = None
+            unwrapped = actual
+        else:
+            raise ValueError(f"Unsupported type: {type(actual)}")
+
+        # store Playwright expect wrapper for assertions
+        self._inner = pw_expect(unwrapped)
+
+    def __getattr__(self, item):
+        target = getattr(self._inner, item)
+
+        if callable(target) and item.startswith("to_"):
+            def wrapper(*args, **kwargs):
+                try:
+                    return target(*args, **kwargs)
+                except AssertionError as e:
+                    # find test file from stack
+                    test_frame = None
+                    for frame_info in inspect.stack():
+                        fname = pathlib.Path(frame_info.filename).resolve()
+                        if "site-packages" not in str(fname) and "playwright" not in str(fname):
+                            if str(fname).endswith(".py") and (
+                                "tests" in str(fname) or "test_" in fname.name
+                            ):
+                                test_frame = frame_info
+                                break
+                    if not test_frame:
+                        test_frame = inspect.stack()[1]
+
+                    filename = pathlib.Path(test_frame.filename).resolve()
+                    line_no = test_frame.lineno
+                    lines = filename.read_text(encoding="utf-8").splitlines()
+
+                    if args:
+                        expected_value = args[0]
+
+                        cached = FIXED_EXPECTS.get((str(filename), str(expected_value)))
+                        if cached:
+                            print(f"[SmartExpect] Using cached expected value: {cached}")
+                            return target(cached, **kwargs)
+
+                        # ask user for correction
+                        root = tk.Tk()
+                        root.withdraw()
+                        new_value = simpledialog.askstring(
+                            "Expectation failed",
+                            f"Expectation failed in {filename.name}:{line_no}\n"
+                            f"Expected: {expected_value}\nEnter correct expected value:",
+                            initialvalue=expected_value
+                        )
+
+                        if new_value == expected_value:
+                            selected_locator = select_element_on_page(self.page)
+                            new_value = get_element_value_or_text(selected_locator)
+
+                        if not new_value:
+                            raise RuntimeError("Record mode interrupted by user.")
+
+                        root.destroy()
+                        if not new_value:
+                            raise e
+
+                        updated = update_expected_value(
+                            filename, lines, line_no, str(expected_value), new_value
+                        )
+                        if updated:
+                            print(f"[SmartExpect] File updated: {updated} ({expected_value} → {new_value})")
+                        else:
+                            print(f"[SmartExpect] Warning: could not patch {expected_value} in {filename}")
+
+                        FIXED_EXPECTS[(str(filename), str(expected_value))] = new_value
+                        return target(new_value, **kwargs)
+
+                    raise
+            return wrapper
+        return target
+
+    def __dir__(self):
+        return dir(self._inner)
+
+# ---------------- helpers ---------------- #
+
+def expect(actual):
+    """Public entry point: works with SmartLocator or native Playwright objects."""
+    return SmartExpectProxy(actual)
+
+
+def update_expected_value(filename, lines, line_no, old_value, new_value):
     """
-    SmartExpect wrapper around Playwright's expect().
-    - If target is a SmartLocator, unwrap to its .locator
-    - Otherwise, pass through directly
+    Update expected value in test source:
+    1. Inline string literal
+    2. Constant assignment (same file or imported)
+    3. pytest parametrize data row
     """
-    if isinstance(target, SmartLocator):
-        return playwright_expect(target.locator)
-    return playwright_expect(target)
+    line_idx = line_no - 1
+    if not (0 <= line_idx < len(lines)):
+        return None
+
+    line = lines[line_idx]
+
+    # case 1: inline literal
+    if f'"{old_value}"' in line or f"'{old_value}'" in line:
+        lines[line_idx] = line.replace(f'"{old_value}"', f'"{new_value}"').replace(
+            f"'{old_value}'", f'"{new_value}"'
+        )
+        filename.write_text("\n".join(lines), encoding="utf-8")
+        return filename
+
+    # case 2: constant
+    const_match = re.search(r"to_have_text\((\w+)\)", line)
+    if const_match:
+        const_name = const_match.group(1)
+        defining_file = find_constant_definition(filename, lines, const_name)
+        if defining_file:
+            text = defining_file.read_text(encoding="utf-8")
+            const_pattern = rf'^{const_name}\s*=\s*["\'].*["\']'
+            repl = f'{const_name} = "{new_value}"'
+            new_text = re.sub(const_pattern, repl, text, flags=re.MULTILINE)
+            defining_file.write_text(new_text, encoding="utf-8")
+            return defining_file
+
+    # case 3: parametrize row
+    provider_file = patch_parametrize_value(filename, lines, old_value, new_value)
+    if provider_file:
+        return provider_file
+
+    return None
+
+
+def patch_parametrize_value(filename, lines, old_value, new_value):
+    """
+    Patch pytest parametrize rows with more precision:
+    - Finds the @pytest.mark.parametrize block
+    - Iterates over each tuple row
+    - Replaces only the matching string literal (not all occurrences on the line)
+    """
+    inside_block = False
+    changed = False
+    new_lines = []
+
+    for line in lines:
+        if line.strip().startswith("@pytest.mark.parametrize"):
+            inside_block = True
+            new_lines.append(line)
+            continue
+
+        if inside_block:
+            # End of block
+            if line.strip().startswith("])"):
+                inside_block = False
+                new_lines.append(line)
+                continue
+
+            # Match tuple rows like ("user", "pass", "Swag Labs1")
+            m = re.match(r'\s*\((.+)\)\s*,?\s*', line)
+            if m:
+                row_content = m.group(1)
+                parts = [p.strip() for p in re.split(r',(?![^()]*\))', row_content)]
+
+                updated_parts = []
+                for part in parts:
+                    if part.startswith(("'", '"')) and old_value in part.strip("'\""):
+                        updated_parts.append(f'"{new_value}"')
+                        changed = True
+                    else:
+                        updated_parts.append(part)
+
+                new_line = "    (" + ", ".join(updated_parts) + "),"
+                new_lines.append(new_line)
+                continue
+
+        new_lines.append(line)
+
+    if changed:
+        filename.write_text("\n".join(new_lines), encoding="utf-8")
+        return filename
+    return None
+
+
+def find_constant_definition(test_file, lines, const_name):
+    # same file
+    for line in lines:
+        if line.strip().startswith(f"{const_name} ="):
+            return test_file
+
+    # imported
+    for line in lines:
+        if line.strip().startswith("from ") and " import " in line:
+            if const_name in line:
+                module = line.split("from ")[1].split(" import ")[0].strip()
+                mod_path = resolve_module_path(test_file, module)
+                if mod_path:
+                    return mod_path
+    return None
+
+
+def resolve_module_path(test_file, module):
+    root = test_file.parent
+    while root.name != "tests" and root != root.parent:
+        root = root.parent
+    project_root = root.parent
+
+    parts = module.split(".")
+    path = project_root.joinpath(*parts)
+    if path.with_suffix(".py").exists():
+        return path.with_suffix(".py")
+    elif path.joinpath("__init__.py").exists():
+        return path.joinpath("__init__.py")
+    return None

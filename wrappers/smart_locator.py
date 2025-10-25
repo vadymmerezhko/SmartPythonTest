@@ -4,7 +4,6 @@ import tkinter as tk
 from tkinter import simpledialog
 import time
 import pathlib
-
 import utils.keyboard_utils as ku
 from utils.web_utils import (
     get_hovered_element_locator, highlight_element,
@@ -109,10 +108,12 @@ class SmartLocator:
             f"Locator '{self.selector}' failed.\n"
             f"Enter new locator for '{self.cache_key}'\n"
             "Or press OK button, select element on the page\n"
-            "and press Ctrl button."
+            "and press Ctrl button.",
+            initialvalue=self.selector
         )
 
-        new_selector = self.get_element_locator_string(new_selector)
+        if new_selector == self.selector:
+            new_selector = self.get_element_locator_string(new_selector)
 
         if not new_selector:
             raise RuntimeError("Record mode interrupted by user.")
@@ -148,12 +149,13 @@ class SmartLocator:
         last_locator = None
         last_original_style = None
 
-        while new_selector == "":
+        while new_selector == self.selector:
             try:
                 selected_locator = get_hovered_element_locator(self.page)
                 locator_string = get_unique_css_selector(selected_locator)
 
                 if not compare_locators_geometry(selected_locator, last_locator):
+
                     if last_locator is not None:
                         reset_element_style(last_locator, last_original_style)
                     last_original_style = highlight_element(selected_locator)
@@ -164,6 +166,7 @@ class SmartLocator:
 
                 if pressed_key == keyboard.Key.esc:
                     return None
+
                 if pressed_key in (keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
                     if locator_string:
                         new_selector = locator_string
