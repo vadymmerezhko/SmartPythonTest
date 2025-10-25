@@ -1,35 +1,14 @@
-import os
+import pyautogui
+import pygetwindow as gw
 from playwright.sync_api import Page, Locator
-
-# Try GUI-dependent imports (fail gracefully in CI)
-try:
-    import pyautogui
-    import pygetwindow as gw
-    GUI_AVAILABLE = True
-except Exception:
-    GUI_AVAILABLE = False
-
-    # Safe stubs so import doesn't crash in CI
-    class _Stub:
-        def __getattr__(self, item):
-            raise RuntimeError(f"{item} is not available in headless environment")
-
-    pyautogui = _Stub()
-    gw = _Stub()
 
 
 def get_hovered_element_locator(page: Page):
     """
     Returns a Playwright locator for the innermost element currently hovered by the mouse cursor.
     Uses :hover chain to ensure we don't accidentally select <body> or a container.
-
-    Raises:
-        RuntimeError if GUI is not available (e.g. in GitHub Actions CI).
     """
-    if not GUI_AVAILABLE:
-        raise RuntimeError("get_hovered_element_locator requires GUI, not available in CI")
-
-    selector = page.evaluate("""
+    selector = page.evaluate(r"""
         () => {
             const hovered = document.querySelectorAll(':hover');
             if (!hovered || hovered.length === 0) return null;
@@ -38,7 +17,7 @@ def get_hovered_element_locator(page: Page):
 
             let sel = el.tagName.toLowerCase();
             if (el.id) sel += "#" + el.id;
-            if (el.className) sel += "." + el.className.toString().replace(/\\s+/g, ".");
+            if (el.className) sel += "." + el.className.toString().replace(/\s+/g, ".");
             return sel;
         }
     """)
@@ -80,7 +59,7 @@ def get_unique_css_selector(locator: Locator) -> str | None:
     Priority: id > name > role > class > tag + nth-of-type.
     Returns None if uniqueness cannot be guaranteed.
     """
-    element_info = locator.evaluate("""el => {
+    element_info = locator.evaluate(r"""el => {
         if (!el) return null;
 
         function escapeCss(s) {

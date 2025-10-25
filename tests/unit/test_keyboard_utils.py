@@ -1,17 +1,8 @@
 import pytest
-
-# Try to import pynput safely
-try:
-    from pynput import keyboard
-    import utils.keyboard_utils as ku
-    GUI_AVAILABLE = True
-except Exception:
-    GUI_AVAILABLE = False
-    ku = None
-    keyboard = None
+from pynput import keyboard
+import utils.keyboard_utils as ku
 
 
-@pytest.mark.skipif(not GUI_AVAILABLE, reason="Requires GUI (pynput not available in CI)")
 def test_get_last_pressed_key_returns_none_initially(monkeypatch):
     ku._last_key = None
     ku._listener = None
@@ -20,7 +11,6 @@ def test_get_last_pressed_key_returns_none_initially(monkeypatch):
     assert result is None
 
 
-@pytest.mark.skipif(not GUI_AVAILABLE, reason="Requires GUI (pynput not available in CI)")
 def test_get_last_pressed_key_updates_on_press(monkeypatch):
     ku._last_key = None
     ku._listener = None
@@ -31,7 +21,6 @@ def test_get_last_pressed_key_updates_on_press(monkeypatch):
     assert result == keyboard.Key.ctrl_l
 
 
-@pytest.mark.skipif(not GUI_AVAILABLE, reason="Requires GUI (pynput not available in CI)")
 def test_get_last_pressed_key_with_char_key(monkeypatch):
     ku._last_key = None
     ku._listener = None

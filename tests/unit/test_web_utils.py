@@ -2,7 +2,6 @@ import pytest
 from utils import web_utils
 
 
-@pytest.mark.skipif(not web_utils.GUI_AVAILABLE, reason="Requires GUI (not available in CI)")
 def test_get_hovered_element_locator(page):
     page.goto("https://www.saucedemo.com/")
     # Hover over username input
