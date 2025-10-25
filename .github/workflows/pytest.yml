@@ -46,13 +46,13 @@ jobs:
       - name: Run unit tests with pytest
         run: |
           mkdir -p reports/unit
-          pytest tests/unit/ --html=reports/unit/report.html --self-contained-html -v
+          xvfb-run -a pytest tests/unit/ --html=reports/unit/report.html --self-contained-html -v
 
       # Run pytest E2E test
       - name: Run E2E tests with pytest
         run: |
           mkdir -p reports/e2e
-          pytest tests/e2e/ --html=reports/e2e/report.html --self-contained-html -v
+          xvfb-run -a pytest tests/e2e/ --html=reports/e2e/report.html --self-contained-html -v
 
       # Upload HTML unit test report as GitHub artifact
       - name: Upload unit test report
