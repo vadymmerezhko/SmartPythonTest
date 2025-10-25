@@ -4,29 +4,13 @@ import tkinter as tk
 from tkinter import simpledialog
 import time
 import pathlib
+
 import utils.keyboard_utils as ku
 from utils.web_utils import (
     get_hovered_element_locator, highlight_element,
     reset_element_style, get_unique_css_selector,
     compare_locators_geometry, select_element_on_page
 )
-
-# Safe import for pynput.keyboard (may fail in headless CI)
-try:
-    from pynput import keyboard
-    GUI_AVAILABLE = True
-except Exception:
-    GUI_AVAILABLE = False
-
-    # Minimal stub so code can still import in CI
-    class _KeyboardStub:
-        class Key:
-            ctrl_l = "ctrl_l"
-            ctrl_r = "ctrl_r"
-            esc = "esc"
-
-    keyboard = _KeyboardStub()
-
 
 # Global cache for runtime locator fixes
 FIXED_LOCATORS = {}
@@ -84,7 +68,7 @@ class SmartLocator:
                 try:
                     return target(*args, **kwargs)
                 except Exception:
-                    if self.config.get("record_mode") and GUI_AVAILABLE:
+                    if self.config.get("record_mode"):
                         print(f"[SmartLocator] '{item}' failed for {self.cache_key}, opening dialog...")
                         new_locator = self.handle_missing_locator()
                         return getattr(new_locator, item)(*args, **kwargs)
@@ -98,9 +82,6 @@ class SmartLocator:
     __repr__ = __str__
 
     def handle_missing_locator(self):
-        if not GUI_AVAILABLE:
-            raise RuntimeError("Record mode locator fixing requires GUI, not available in CI")
-
         root = tk.Tk()
         root.withdraw()
         new_selector = simpledialog.askstring(
@@ -142,35 +123,3 @@ class SmartLocator:
         else:
             print(f"[SmartLocator] Warning: could not patch {self.cache_key} in {path}")
 
-    def get_element_locator_string(self, new_selector):
-        if not GUI_AVAILABLE:
-            return new_selector
-
-        last_locator = None
-        last_original_style = None
-
-        while new_selector == self.selector:
-            try:
-                selected_locator = get_hovered_element_locator(self.page)
-                locator_string = get_unique_css_selector(selected_locator)
-
-                if not compare_locators_geometry(selected_locator, last_locator):
-
-                    if last_locator is not None:
-                        reset_element_style(last_locator, last_original_style)
-                    last_original_style = highlight_element(selected_locator)
-                    last_locator = selected_locator
-
-                time.sleep(0.1)
-                pressed_key = ku.get_last_pressed_key()
-
-                if pressed_key == keyboard.Key.esc:
-                    return None
-
-                if pressed_key in (keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
-                    if locator_string:
-                        new_selector = locator_string
-            except Exception:
-                continue
-
-        return new_selector

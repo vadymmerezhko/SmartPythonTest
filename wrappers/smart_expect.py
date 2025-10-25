@@ -1,5 +1,3 @@
-# wrappers/smart_expect.py
-
 import inspect
 import pathlib
 import re
@@ -7,14 +5,8 @@ import tkinter as tk
 from tkinter import simpledialog
 from playwright.sync_api import expect as pw_expect, Page, Locator, APIResponse
 from wrappers.smart_locator import SmartLocator
-from utils.web_utils import (select_element_on_page, get_element_value_or_text)
+from utils.web_utils import select_element_on_page, get_element_value_or_text
 
-# Safe import for pynput.keyboard (may fail in headless CI)
-try:
-    from pynput import keyboard
-    GUI_AVAILABLE = True
-except Exception:
-    GUI_AVAILABLE = False
 
 FIXED_EXPECTS = {}
 
