@@ -2,15 +2,9 @@ import inspect
 import re
 import tkinter as tk
 from tkinter import messagebox, simpledialog
-import time
 import pathlib
+from utils.web_utils import get_unique_element_selector, select_element_on_page
 
-import utils.keyboard_utils as ku
-from utils.web_utils import (
-    get_hovered_element_locator, highlight_element,
-    reset_element_style, get_unique_css_selector,
-    compare_locators_geometry, select_element_on_page
-)
 
 # Global cache for runtime locator fixes
 FIXED_LOCATORS = {}
@@ -90,7 +84,7 @@ class SmartLocator:
                 "Locator failed",
                 f"Locator '{self.selector}' failed.\n"
                 f"Enter new locator for '{self.cache_key}' and click OK.\n"
-                "Or click OK, select element and press Ctrl button."
+                "Or click OK, select element and press Ctrl button.\n"
                 "Or click Cancel to terminate record mode.",
                 initialvalue=self.selector
             )
@@ -100,7 +94,7 @@ class SmartLocator:
 
             if new_selector == self.selector:
                 selected_locator = select_element_on_page(self.page)
-                new_selector = get_unique_css_selector(selected_locator)
+                new_selector = get_unique_element_selector(selected_locator)
 
                 result = messagebox.askokcancel(
                     "Locator confirmation",

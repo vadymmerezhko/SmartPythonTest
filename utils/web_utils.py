@@ -1,6 +1,7 @@
 import time
 import pyautogui
 from pynput import keyboard
+from itertools import combinations
 import utils.keyboard_utils as ku
 from playwright.sync_api import Page, Locator
 
@@ -55,7 +56,11 @@ def reset_element_style(locator: Locator, original_style: str):
         locator.evaluate(f"el => el.setAttribute('style', `{original_style}`)")
 
 
-def get_unique_css_selector(locator: Locator) -> str | None:
+from itertools import combinations
+from playwright.sync_api import Locator
+
+
+def get_simple_css_selector(locator: Locator) -> str | None:
     """
     Generate a unique CSS selector string for a Playwright Locator element.
     Priority: id > name > role > class > tag + nth-of-type.
@@ -78,7 +83,7 @@ def get_unique_css_selector(locator: Locator) -> str | None:
             if (val) {
                 const sel = (attr === "id")
                     ? `#${escapeCss(val)}`
-                    : `${tag}[${attr}="${escapeCss(val)}"]`;
+                    : `${tag}[${attr}='${escapeCss(val)}']`;
                 if (document.querySelectorAll(sel).length === 1) {
                     return sel;
                 }
@@ -104,6 +109,114 @@ def get_unique_css_selector(locator: Locator) -> str | None:
     }""")
 
     return element_info
+
+
+from itertools import combinations
+from playwright.sync_api import Locator
+
+
+def get_complex_css_selector(locator: Locator) -> str | None:
+    """
+    Generate a CSS selector string for a Playwright Locator element,
+    starting from:
+      1. tag only
+      2. tag + 1 attribute
+      3. tag + 2 attributes
+      ...
+    Until a unique selector is found.
+
+    Attributes considered (in order):
+        class, role, type, tabindex, accesskey,
+        draggable, spellcheck, translate, contenteditable,
+        autocapitalize, enterkeyhint, required, pattern,
+        data-role, data-user, aria-labelledby, aria-required
+
+    Returns:
+        str | None: Unique selector string if found, else None.
+    """
+
+    attrs_to_check = [
+        "class", "role", "type", "tabindex", "accesskey",
+        "draggable", "spellcheck", "translate", "contenteditable",
+        "autocapitalize", "enterkeyhint", "required", "pattern",
+        "data-role", "data-user", "aria-labelledby", "aria-required"
+    ]
+
+    # Extract element tag + available attributes
+    element_info = locator.evaluate(f"""el => {{
+        if (!el) return null;
+        const attrs = {{}};
+        for (const a of {attrs_to_check!r}) {{
+            const val = el.getAttribute(a);
+            if (val) attrs[a] = val;
+        }}
+        return {{
+            tag: el.tagName.toLowerCase(),
+            attrs
+        }};
+    }}""")
+
+    if not element_info:
+        return None
+
+    tag = element_info["tag"]
+    attrs = element_info["attrs"]
+
+    def escape_css(value: str) -> str:
+        return value.replace("'", "\\'")  # escape single quotes
+
+    # --- Step 1: check tag alone
+    is_tag_unique = locator.page.evaluate(
+        """(sel) => document.querySelectorAll(sel).length === 1""",
+        tag
+    )
+    if is_tag_unique:
+        return tag
+
+    keys = list(attrs.keys())
+
+    # --- Step 2+: progressively add attributes
+    for r in range(1, len(keys) + 1):  # start from 1 attribute
+        for combo in combinations(keys, r):
+            parts = [f"[{k}='{escape_css(attrs[k])}']" for k in combo]
+            selector = tag + "".join(parts)
+
+            is_unique = locator.page.evaluate(
+                """(sel) => document.querySelectorAll(sel).length === 1""",
+                selector
+            )
+
+            if is_unique:
+                return selector
+
+    return None
+
+
+def get_unique_element_selector(locator: Locator) -> str | None:
+    """
+    Build a unique CSS selector string for the given Playwright Locator.
+
+    The function attempts to generate the most reliable selector in two steps:
+    1. It first tries to build a simple CSS selector (usually based on unique `id`
+       or a single strong attribute) using `get_simple_css_selector(locator)`.
+    2. If a simple selector cannot be generated or is not unique, it falls back
+       to `get_complex_css_selector(locator)`, which builds a selector that combines
+       multiple attributes (e.g., tag + id + class + data-*).
+
+    Args:
+        locator (Locator): A Playwright Locator pointing to the target element.
+
+    Returns:
+        str | None: A unique CSS selector string if one can be constructed,
+        otherwise None if neither simple nor complex selectors could uniquely
+        identify the element.
+    """
+    selector = get_simple_css_selector(locator)
+
+    if not selector:
+        selector = get_complex_css_selector(locator)
+
+    return selector
 
 
 def compare_locators_geometry(locator1: Locator, locator2: Locator, tolerance: float = 0.5) -> bool:
