@@ -1,5 +1,3 @@
-# utils/keyboard_utils.py
-
 from pynput import keyboard
 
 _last_key = None

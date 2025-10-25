@@ -4,5 +4,4 @@ playwright
 pytest-xdist      # optional: parallel test execution
 pytest-html       # for HTML reports
 pyautogui
-pygetwindow
 pynput

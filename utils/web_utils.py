@@ -1,5 +1,4 @@
 import pyautogui
-import pygetwindow as gw
 from playwright.sync_api import Page, Locator
 
 
