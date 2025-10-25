@@ -69,7 +69,9 @@ def get_unique_css_selector(locator: Locator) -> str | None:
         }
 
         const tag = el.tagName.toLowerCase();
-        const attrs = ["id", "name", "role", "data-testid", "aria-label", "alt", "title"];
+        const attrs = ["id", "name", "role", "class", "type",
+                       "data-id", "data-test", "data-testid", "data-role",
+                       "aria-label", "alt", "title", "placeholder"];
 
         for (const attr of attrs) {
             const val = el.getAttribute(attr);
@@ -181,12 +183,14 @@ def select_element_on_page(page):
 
             if pressed_key in (keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
                 # Confirm current selection
+                reset_element_style(last_locator, last_original_style)
                 return selected_locator
 
         except Exception:
             # If hovering or style reset fails, retry
             continue
 
+    reset_element_style(last_locator, last_original_style)
     return None
 
 

@@ -1,7 +1,7 @@
 import inspect
 import re
 import tkinter as tk
-from tkinter import simpledialog
+from tkinter import messagebox, simpledialog
 import time
 import pathlib
 
@@ -84,20 +84,35 @@ class SmartLocator:
     def handle_missing_locator(self):
         root = tk.Tk()
         root.withdraw()
-        new_selector = simpledialog.askstring(
-            "Locator not found",
-            f"Locator '{self.selector}' failed.\n"
-            f"Enter new locator for '{self.cache_key}' and press OK.\n"
-            "Or press OK, select element and press Ctrl button.",
-            initialvalue=self.selector
-        )
 
-        if new_selector == self.selector:
-            selected_locator = select_element_on_page(self.page)
-            new_selector = get_unique_css_selector(selected_locator)
+        while True:
+            new_selector = simpledialog.askstring(
+                "Locator failed",
+                f"Locator '{self.selector}' failed.\n"
+                f"Enter new locator for '{self.cache_key}' and click OK.\n"
+                "Or click OK, select element and press Ctrl button."
+                "Or click Cancel to terminate record mode.",
+                initialvalue=self.selector
+            )
 
-        if not new_selector:
-            raise RuntimeError("Record mode interrupted by user.")
+            if not new_selector:
+                raise RuntimeError("Record mode interrupted by user.")
+
+            if new_selector == self.selector:
+                selected_locator = select_element_on_page(self.page)
+                new_selector = get_unique_css_selector(selected_locator)
+
+                result = messagebox.askokcancel(
+                    "Locator confirmation",
+                    f"Locator '{new_selector}' for '{self.cache_key}' found.\n"
+                    "Click OK to confirm and save locator.\n"
+                    "Or click Cancel to keep updating."
+                )
+
+                if result:
+                    break
+                else:
+                    continue
 
         # Update this instance + cache
         self.selector = new_selector

@@ -2,7 +2,7 @@ import inspect
 import pathlib
 import re
 import tkinter as tk
-from tkinter import simpledialog
+from tkinter import messagebox, simpledialog
 from playwright.sync_api import expect as pw_expect, Page, Locator, APIResponse
 from wrappers.smart_locator import SmartLocator
 from utils.web_utils import select_element_on_page, get_element_value_or_text
@@ -68,21 +68,38 @@ class SmartExpectProxy:
                         # ask user for correction
                         root = tk.Tk()
                         root.withdraw()
-                        new_value = simpledialog.askstring(
-                            "Expectation failed",
-                            f"Expectation failed in {filename.name}:{line_no}\n"
-                            f"Expected: {expected_value}\n"
-                            "Enter correct expected value and press OK.\n"
-                            "Or press OK, select element value and press Ctrl.",
-                            initialvalue=expected_value
-                        )
 
-                        if new_value == expected_value:
-                            selected_locator = select_element_on_page(self.page)
-                            new_value = get_element_value_or_text(selected_locator)
+                        while True:
+                            new_value = simpledialog.askstring(
+                                "Expectation failed",
+                                f"Expectation failed in {filename.name}:{line_no}\n"
+                                f"Expected: {expected_value}\n"
+                                "Enter correct expected value and click OK.\n"
+                                "Or click OK, select element value and press Ctrl.\n"
+                                "Or click Cancel to terminate record mode.",
+                                initialvalue=expected_value
+                            )
 
-                        if not new_value:
-                            raise RuntimeError("Record mode interrupted by user.")
+                            if not new_value:
+                                raise RuntimeError("Record mode interrupted by user.")
+
+                            if new_value == expected_value:
+                                selected_locator = select_element_on_page(self.page)
+                                new_value = get_element_value_or_text(selected_locator)
+
+                                result = messagebox.askokcancel(
+                                    "Value confirmation",
+                                    f"Expected value found for {filename.name}:{line_no}\n"
+                                    f"Expected: {new_value}\n"
+                                    "Click OK to confirm and save this value.\n"
+                                    "Or click Cancel to keep updating."
+                                )
+
+                                if result:
+                                    break
+                                else:
+                                    new_value = expected_value
+                                    continue
 
                         root.destroy()
                         if not new_value:
