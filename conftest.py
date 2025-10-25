@@ -39,6 +39,9 @@ def config(pytestconfig):
     record_mode = pytestconfig.getoption("record_mode")
     if record_mode is not None:
         cfg["record_mode"] = record_mode.lower() == "true"
+    else:
+        # Ensure record_mode is always present and boolean
+        cfg["record_mode"] = bool(cfg.get("record_mode", False))
 
     # Custom: username override
     username = pytestconfig.getoption("username")
