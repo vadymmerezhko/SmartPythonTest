@@ -1,32 +1,99 @@
 import time
 import pyautogui
 from pynput import keyboard
-from itertools import combinations
 import utils.keyboard_utils as ku
 from playwright.sync_api import Page, Locator
 
 
+from playwright.sync_api import Page
+
 def get_hovered_element_locator(page: Page):
     """
-    Returns a Playwright locator for the innermost element currently hovered by the mouse cursor.
-    Uses :hover chain to ensure we don't accidentally select <body> or a container.
+    Returns a Playwright locator for the leaf element (no child elements)
+    currently under the mouse cursor. It compares bounding boxes (x,y,width,height)
+    of all leaf nodes and returns the one that matches the hovered element position.
     """
     selector = page.evaluate(r"""
         () => {
-            const hovered = document.querySelectorAll(':hover');
-            if (!hovered || hovered.length === 0) return null;
+            function getUniqueSelector(el) {
+                if (!el) return null;
+                if (el.id) return `#${el.id}`;
 
-            const el = hovered[hovered.length - 1]; // innermost hovered element
+                let path = [];
+                while (el && el.nodeType === 1 && el !== document.body) {
+                    let selector = el.nodeName.toLowerCase();
 
-            let sel = el.tagName.toLowerCase();
-            if (el.id) sel += "#" + el.id;
-            if (el.className) sel += "." + el.className.toString().replace(/\s+/g, ".");
-            return sel;
+                    if (el.className) {
+                        const classes = el.className.toString().trim().split(/\s+/).filter(Boolean);
+                        if (classes.length > 0) {
+                            selector += '.' + classes.join('.');
+                        }
+                    }
+
+                    const parent = el.parentNode;
+                    if (parent) {
+                        const siblings = Array.from(parent.children).filter(
+                            sib => sib.nodeName === el.nodeName
+                        );
+                        if (siblings.length > 1) {
+                            const index = siblings.indexOf(el) + 1;
+                            selector += `:nth-of-type(${index})`;
+                        }
+                    }
+
+                    path.unshift(selector);
+                    el = el.parentNode;
+                }
+                return path.join(' > ');
+            }
+
+            let hoveredEl = null;
+            if (window.__lastMouseEvent) {
+                const { clientX: x, clientY: y } = window.__lastMouseEvent;
+                hoveredEl = document.elementFromPoint(x, y);
+            }
+            if (!hoveredEl) {
+                const hovered = document.querySelectorAll(':hover');
+                if (hovered && hovered.length > 0) {
+                    hoveredEl = hovered[hovered.length - 1];
+                }
+            }
+            if (!hoveredEl) return null;
+
+            // Get bounding box of hovered
+            const hoveredRect = hoveredEl.getBoundingClientRect();
+
+            // Find all leaf nodes (elements without children)
+            const leaves = [];
+            const all = document.querySelectorAll('*');
+            all.forEach(el => {
+                if (!el.children || el.children.length === 0) {
+                    const r = el.getBoundingClientRect();
+                    if (r.width > 0 && r.height > 0) {
+                        leaves.push({el, rect: r});
+                    }
+                }
+            });
+
+            // Find leaf with same position/size as hovered element
+            for (const {el, rect} of leaves) {
+                if (
+                    Math.abs(rect.x - hoveredRect.x) < 1 &&
+                    Math.abs(rect.y - hoveredRect.y) < 1 &&
+                    Math.abs(rect.width - hoveredRect.width) < 1 &&
+                    Math.abs(rect.height - hoveredRect.height) < 1
+                ) {
+                    return getUniqueSelector(el);
+                }
+            }
+
+            // fallback to hovered element
+            return getUniqueSelector(hoveredEl);
         }
     """)
 
     if not selector:
-        raise RuntimeError("No element is currently hovered")
+        raise RuntimeError("No element found under mouse cursor")
 
     return page.locator(selector)
 

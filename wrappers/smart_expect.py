@@ -1,3 +1,4 @@
+# wrappers/smart_expect.py
 import inspect
 import pathlib
 import re
@@ -7,16 +8,16 @@ from playwright.sync_api import expect as pw_expect, Page, Locator, APIResponse
 from wrappers.smart_locator import SmartLocator
 from utils.web_utils import select_element_on_page, get_element_value_or_text
 
-
 FIXED_EXPECTS = {}
 
 
 class SmartExpectProxy:
     def __init__(self, actual):
-        # unwrap SmartLocator
+        self._smart_locator = None
         if isinstance(actual, SmartLocator):
             self.page = actual.page
-            unwrapped = actual.locator   # <-- pass underlying Locator
+            self._smart_locator = actual
+            unwrapped = actual.locator
         elif isinstance(actual, Locator):
             self.page = actual.page
             unwrapped = actual
@@ -29,7 +30,6 @@ class SmartExpectProxy:
         else:
             raise ValueError(f"Unsupported type: {type(actual)}")
 
-        # store Playwright expect wrapper for assertions
         self._inner = pw_expect(unwrapped)
 
     def __getattr__(self, item):
@@ -37,10 +37,29 @@ class SmartExpectProxy:
 
         if callable(target) and item.startswith("to_"):
             def wrapper(*args, **kwargs):
+                nonlocal target
+
+                # ---- Step 1: Heal locator first if SmartLocator is invalid ----
+                if self._smart_locator:
+                    try:
+                        count = self._smart_locator.locator.count()
+                        if count == 0 and self._smart_locator.config.get("record_mode"):
+                            print(f"[SmartExpect] Healing locator in {self._smart_locator.cache_key}...")
+                            fixed_locator = self._smart_locator.handle_missing_locator()
+                            self._inner = pw_expect(fixed_locator)
+                            target = getattr(self._inner, item)
+                    except Exception:
+                        if self._smart_locator.config.get("record_mode"):
+                            print(f"[SmartExpect] Locator resolution failed for {self._smart_locator.cache_key}, healing...")
+                            fixed_locator = self._smart_locator.handle_missing_locator()
+                            self._inner = pw_expect(fixed_locator)
+                            target = getattr(self._inner, item)
+
+                # ---- Step 2: Run assertion, fix expected value if needed ----
                 try:
                     return target(*args, **kwargs)
                 except AssertionError as e:
-                    # find test file from stack
+                    # --- Extract test file info ---
                     test_frame = None
                     for frame_info in inspect.stack():
                         fname = pathlib.Path(frame_info.filename).resolve()
@@ -65,7 +84,6 @@ class SmartExpectProxy:
                             print(f"[SmartExpect] Using cached expected value: {cached}")
                             return target(cached, **kwargs)
 
-                        # ask user for correction
                         root = tk.Tk()
                         root.withdraw()
 
@@ -92,7 +110,7 @@ class SmartExpectProxy:
                                     f"Expected value found for {filename.name}:{line_no}\n"
                                     f"Expected: {new_value}\n"
                                     "Click OK to confirm and save this value.\n"
-                                    "Or click Cancel to keep updating."
+                                    "Or click Cancel to retry."
                                 )
 
                                 if result:
@@ -123,6 +141,7 @@ class SmartExpectProxy:
     def __dir__(self):
         return dir(self._inner)
 
+
 # ---------------- helpers ---------------- #
 
 def expect(actual):
@@ -131,12 +150,7 @@ def expect(actual):
 
 
 def update_expected_value(filename, lines, line_no, old_value, new_value):
-    """
-    Update expected value in test source:
-    1. Inline string literal
-    2. Constant assignment (same file or imported)
-    3. pytest parametrize data row
-    """
+    """Patch inline string, constant, or parametrize row in test file."""
     line_idx = line_no - 1
     if not (0 <= line_idx < len(lines)):
         return None
@@ -144,9 +158,9 @@ def update_expected_value(filename, lines, line_no, old_value, new_value):
     line = lines[line_idx]
 
     # case 1: inline literal
-    if f'"{old_value}"' in line or f"'{old_value}'" in line:
-        lines[line_idx] = line.replace(f'"{old_value}"', f'"{new_value}"').replace(
-            f"'{old_value}'", f'"{new_value}"'
+    if f"'{old_value}'" in line or f'"{old_value}"' in line:
+        lines[line_idx] = line.replace(f"'{old_value}'", f"'{new_value}'").replace(
+            f'"{old_value}"', f"'{new_value}'"
         )
         filename.write_text("\n".join(lines), encoding="utf-8")
         return filename
@@ -159,7 +173,7 @@ def update_expected_value(filename, lines, line_no, old_value, new_value):
         if defining_file:
             text = defining_file.read_text(encoding="utf-8")
             const_pattern = rf'^{const_name}\s*=\s*["\'].*["\']'
-            repl = f'{const_name} = "{new_value}"'
+            repl = f"{const_name} = '{new_value}'"
             new_text = re.sub(const_pattern, repl, text, flags=re.MULTILINE)
             defining_file.write_text(new_text, encoding="utf-8")
             return defining_file
@@ -173,12 +187,7 @@ def update_expected_value(filename, lines, line_no, old_value, new_value):
 
 
 def patch_parametrize_value(filename, lines, old_value, new_value):
-    """
-    Patch pytest parametrize rows with more precision:
-    - Finds the @pytest.mark.parametrize block
-    - Iterates over each tuple row
-    - Replaces only the matching string literal (not all occurrences on the line)
-    """
+    """Patch pytest parametrize rows with string replacement."""
     inside_block = False
     changed = False
     new_lines = []
@@ -190,22 +199,20 @@ def patch_parametrize_value(filename, lines, old_value, new_value):
             continue
 
         if inside_block:
-            # End of block
             if line.strip().startswith("])"):
                 inside_block = False
                 new_lines.append(line)
                 continue
 
-            # Match tuple rows like ("user", "pass", "Swag Labs1")
-            m = re.match(r'\s*\((.+)\)\s*,?\s*', line)
+            m = re.match(r"\s*\((.+)\)\s*,?\s*", line)
             if m:
                 row_content = m.group(1)
-                parts = [p.strip() for p in re.split(r',(?![^()]*\))', row_content)]
+                parts = [p.strip() for p in re.split(r",(?![^()]*\))", row_content)]
 
                 updated_parts = []
                 for part in parts:
                     if part.startswith(("'", '"')) and old_value in part.strip("'\""):
-                        updated_parts.append(f'"{new_value}"')
+                        updated_parts.append(f"'{new_value}'")
                         changed = True
                     else:
                         updated_parts.append(part)
@@ -223,12 +230,9 @@ def patch_parametrize_value(filename, lines, old_value, new_value):
 
 
 def find_constant_definition(test_file, lines, const_name):
-    # same file
     for line in lines:
         if line.strip().startswith(f"{const_name} ="):
             return test_file
-
-    # imported
     for line in lines:
         if line.strip().startswith("from ") and " import " in line:
             if const_name in line:

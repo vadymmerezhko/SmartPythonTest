@@ -4,7 +4,7 @@ from pages.inventory_page import InventoryPage
 from wrappers.smart_expect import expect
 from urllib.parse import urljoin
 
-INVENTORY_PAGE_HEADER = "Swag Labs"
+INVENTORY_PAGE_HEADER = 'Swag Labs'
 
 @pytest.mark.parametrize("username,password", [
     ("standard_user", "secret_sauce"),

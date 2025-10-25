@@ -8,7 +8,7 @@ class InventoryPage(Page):
         self.page = page
         self.config = config
         # Selectors
-        self.header = SmartLocator(self, ".header_label")
+        self.header = SmartLocator(self, "div[class='app_logo']")
 
     def get_page(self):
         return self.page
