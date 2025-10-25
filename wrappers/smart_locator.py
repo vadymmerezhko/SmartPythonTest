@@ -8,7 +8,7 @@ import utils.keyboard_utils as ku
 from utils.web_utils import (
     get_hovered_element_locator, highlight_element,
     reset_element_style, get_unique_css_selector,
-    compare_locators_geometry
+    compare_locators_geometry, select_element_on_page
 )
 
 # Safe import for pynput.keyboard (may fail in headless CI)
@@ -106,14 +106,14 @@ class SmartLocator:
         new_selector = simpledialog.askstring(
             "Locator not found",
             f"Locator '{self.selector}' failed.\n"
-            f"Enter new locator for '{self.cache_key}'\n"
-            "Or press OK button, select element on the page\n"
-            "and press Ctrl button.",
+            f"Enter new locator for '{self.cache_key}' and press OK.\n"
+            "Or press OK, select element and press Ctrl button.",
             initialvalue=self.selector
         )
 
         if new_selector == self.selector:
-            new_selector = self.get_element_locator_string(new_selector)
+            selected_locator = select_element_on_page(self.page)
+            new_selector = get_unique_css_selector(selected_locator)
 
         if not new_selector:
             raise RuntimeError("Record mode interrupted by user.")

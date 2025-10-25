@@ -79,7 +79,9 @@ class SmartExpectProxy:
                         new_value = simpledialog.askstring(
                             "Expectation failed",
                             f"Expectation failed in {filename.name}:{line_no}\n"
-                            f"Expected: {expected_value}\nEnter correct expected value:",
+                            f"Expected: {expected_value}\n"
+                            "Enter correct expected value and press OK.\n"
+                            "Or press OK, select element value and press Ctrl.",
                             initialvalue=expected_value
                         )
 
