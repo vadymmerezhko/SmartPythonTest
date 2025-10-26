@@ -203,7 +203,7 @@ def test_cart_icon_selector(logged_in_page: Page):
     selector = get_css_selector_by_parent(locator)
     assert selector is not None
     # Ensure selector identifies cart container within header
-    assert "primary_header" in selector
+    assert "primary-header" in selector
     assert selector.endswith("> div")
 
 

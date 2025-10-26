@@ -217,8 +217,8 @@ def get_simple_css_selector(locator: Locator) -> str | None:
         }
 
         const tag = el.tagName.toLowerCase();
-        const attrs = ["id", "name", "role", "class", "type",
-                       "data-id", "data-test", "data-testid", "data-role",
+        const attrs = ["id", "data-id", "data-test", "data-testid", "name",
+                       "role", "class", "type", "data-role",
                        "aria-label", "alt", "title", "placeholder"];
 
         for (const attr of attrs) {
@@ -275,10 +275,10 @@ def get_complex_css_selector(locator: Locator) -> str | None:
     """
 
     attrs_to_check = [
-        "class", "role", "type", "tabindex", "accesskey",
-        "draggable", "spellcheck", "translate", "contenteditable",
-        "autocapitalize", "enterkeyhint", "required", "pattern",
-        "data-role", "data-user", "aria-labelledby", "aria-required"
+        "class", "role", "data-role", "type", "tabindex", "accesskey",
+        "pattern", "draggable", "spellcheck", "translate", "contenteditable",
+        "autocapitalize", "enterkeyhint", "required", "aria-required",
+        "data-user", "aria-labelledby"
     ]
 
     # Extract element tag + available attributes
