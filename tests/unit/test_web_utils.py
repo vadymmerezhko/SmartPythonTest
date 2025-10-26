@@ -1,11 +1,19 @@
 import pytest
 from unittest.mock import MagicMock
+from urllib.parse import urljoin
 from utils.web_utils import (compare_locators_geometry,
                              get_simple_css_selector,
                              get_complex_css_selector,
-                            get_hovered_element_locator,
+                             get_css_selector_by_parent,
+                             get_hovered_element_locator,
                              highlight_element,
-                             reset_element_style)
+                             reset_element_style,
+                             xpath_to_css)
+
+LOGIN_URL = "https://www.saucedemo.com/"
+USERNAME = "standard_user"
+PASSWORD = "secret_sauce"
+INVENTORY_PATH = "inventory.html"
 
 
 def test_get_hovered_element_locator(page):
@@ -120,3 +128,24 @@ def test_unique_tag_selector():
     assert result == "button"
 
 
+@pytest.fixture(scope="function")
+def login(page, config):
+    # navigate to login
+    page.goto(LOGIN_URL)
+    # login
+    page.fill("#user-name", USERNAME)
+    page.fill("#password", PASSWORD)
+    page.click("#login-button")
+    # ensure landing on inventory page
+    expected = urljoin(config["demo_base_url"], INVENTORY_PATH)
+    assert page.url == expected, f"Expected {expected}, got {page.url}"
+    return page
+
+def test_inventory_header(login):
+    # once logged in, check header text
+    header_locator = login.locator(".header_secondary_container .title")
+    assert header_locator.inner_text().strip() == "Products"
+
+def test_cart_icon_present(login):
+    cart_icon = login.locator(".shopping_cart_link")
+    assert cart_icon.is_visible()

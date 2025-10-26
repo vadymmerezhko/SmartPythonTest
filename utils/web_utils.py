@@ -1,6 +1,8 @@
 import time
 import pyautogui
+from itertools import combinations
 from pynput import keyboard
+from typing import Optional
 import utils.keyboard_utils as ku
 from playwright.sync_api import Page, Locator
 
@@ -123,8 +125,33 @@ def reset_element_style(locator: Locator, original_style: str):
         locator.evaluate(f"el => el.setAttribute('style', `{original_style}`)")
 
 
-from itertools import combinations
-from playwright.sync_api import Locator
+def xpath_to_css(xpath: str) -> Optional[str]:
+    """
+    Very basic XPath -> CSS converter for simple cases:
+    - (//tag)[n] -> tag:nth-of-type(n)
+    - //tag[@attr='value'] -> tag[attr='value']
+    - //* -> *
+    This is not a full converter but good enough for Playwright fallbacks.
+    """
+    import re
+
+    # (//tag)[n]
+    match = re.match(r"^\(//(\w+)\)\[(\d+)\]$", xpath)
+    if match:
+        tag, idx = match.groups()
+        return f"{tag}:nth-of-type({idx})"
+
+    # //tag[@attr='value']
+    match = re.match(r"^//(\w+)\[@([^=]+)='([^']+)'\]$", xpath)
+    if match:
+        tag, attr, val = match.groups()
+        return f"{tag}[{attr}='{val}']"
+
+    # //* -> *
+    if xpath.strip() == "//*":
+        return "*"
+
+    return None
 
 
 def get_simple_css_selector(locator: Locator) -> str | None:
@@ -176,10 +203,6 @@ def get_simple_css_selector(locator: Locator) -> str | None:
     }""")
 
     return element_info
-
-
-from itertools import combinations
-from playwright.sync_api import Locator
 
 
 def get_complex_css_selector(locator: Locator) -> str | None:
@@ -259,6 +282,68 @@ def get_complex_css_selector(locator: Locator) -> str | None:
     return None
 
 
+def get_css_selector_by_parent(locator: Locator) -> Optional[str]:
+    """
+    Generate a CSS selector string for a Locator using a unique parent selector + child tag.
+
+    Algorithm:
+      1. Get the tag name of the child element.
+      2. Walk up parent elements one by one.
+      3. For each parent:
+         - Try get_simple_css_selector(parent).
+         - If None, try get_complex_css_selector(parent).
+         - If still None, try converting parent XPath to CSS.
+         - If a unique selector is found, return 'parent_selector > child_tag'.
+      4. If no unique parent selector found → return None.
+
+    Returns:
+        str | None: CSS selector string if unique, else None.
+    """
+
+    # Get child tag name
+    element_info = locator.evaluate("""el => {
+        if (!el) return null;
+        return { tag: el.tagName.toLowerCase() };
+    }""")
+    if not element_info:
+        return None
+
+    child_tag = element_info["tag"]
+
+    # Walk up parents
+    current = locator
+    while True:
+        parent = current.locator("..")
+        try:
+            parent_tag = parent.evaluate("el => el.tagName.toLowerCase()")
+        except Exception:
+            break  # no parent
+
+        if not parent_tag:
+            break
+
+        # Try simple selector
+        sel = get_simple_css_selector(parent)
+        if not sel:
+            sel = get_complex_css_selector(parent)
+
+        # Try xpath fallback
+        if not sel:
+            try:
+                parent_xpath = parent.evaluate("el => el.xpath")  # fake: Playwright doesn’t expose directly
+            except Exception:
+                parent_xpath = None
+            if parent_xpath:
+                sel = xpath_to_css(parent_xpath)
+
+        if sel:
+            return f"{sel} > {child_tag}"
+
+        current = parent
+
+    return None
+
+
 def get_unique_element_selector(locator: Locator) -> str | None:
     """
     Build a unique CSS selector string for the given Playwright Locator.
@@ -282,6 +367,9 @@ def get_unique_element_selector(locator: Locator) -> str | None:
 
     if not selector:
         selector = get_complex_css_selector(locator)
+
+    if not selector:
+        selector = get_css_selector_by_parent(locator)
 
     return selector
 
