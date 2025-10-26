@@ -10,6 +10,8 @@ from utils.web_utils import (compare_locators_geometry,
                              get_xpath_selector_by_text,
                              get_xpath_selector_by_parent_text,
                              get_complex_xpath_selector_by_index,
+                             get_not_unique_complex_css_selector,
+                             get_xpath_selector_by_sibling_text,
                              get_hovered_element_locator,
                              highlight_element,
                              reset_element_style,
@@ -357,6 +359,7 @@ def test_trimmed_input():
     xpath = css_to_xpath(css)
     assert xpath == "//div[@id='container']"
 
+
 def _assert_unique_xpath(page: Page, xp: str, expected_text: str = None):
     """Helper: ensure XPath selects exactly one element and optional text check."""
     matches = page.locator(xp)
@@ -365,11 +368,13 @@ def _assert_unique_xpath(page: Page, xp: str, expected_text: str = None):
     if expected_text:
         assert matches.inner_text().strip() == expected_text
 
+
 def test_inventory_item_name_xpath_by_index(logged_in_page: Page):
     locator = logged_in_page.locator("div[data-test='inventory-item-name']").first
     xp = get_complex_xpath_selector_by_index(locator)
     assert xp and xp.startswith("xpath=")
     assert compare_locators_geometry(locator, logged_in_page.locator(xp))
+
 
 def test_inventory_price_xpath(logged_in_page: Page):
     locator = logged_in_page.locator(".inventory_item_price").first
@@ -377,11 +382,13 @@ def test_inventory_price_xpath(logged_in_page: Page):
     assert xp and xp.startswith("xpath=")
     _assert_unique_xpath(logged_in_page, xp, "$29.99")
 
+
 def test_add_to_cart_button_xpath_by_index(logged_in_page: Page):
     locator = logged_in_page.locator("button.btn_inventory").first
     xp = get_complex_xpath_selector_by_index(locator)
     assert xp and xp.startswith("xpath=")
     _assert_unique_xpath(logged_in_page, xp, "Add to cart")
+
 
 def test_cart_icon_xpath_by_index(logged_in_page: Page):
     locator = logged_in_page.locator("#shopping_cart_container")
@@ -389,3 +396,78 @@ def test_cart_icon_xpath_by_index(logged_in_page: Page):
     assert xp and xp.startswith("xpath=")
     _assert_unique_xpath(logged_in_page, xp)
 
+
+def test_not_unique_username_field_selector(page):
+    page.goto("https://www.saucedemo.com/")
+    locator = page.locator("#user-name")
+    sel = get_not_unique_complex_css_selector(locator)
+    assert sel.startswith("input")
+    assert "type='text'" in sel
+
+
+def test_not_unique_login_button_selector(page):
+    page.goto("https://www.saucedemo.com/")
+    locator = page.locator("#login-button")
+    sel = get_not_unique_complex_css_selector(locator)
+    assert sel.startswith("input")
+    assert "type='submit'" in sel or "data-test='login-button'" in sel
+
+
+def test_not_unique_inventory_item_name_selector(logged_in_page):
+    locator = logged_in_page.locator("div[data-test='inventory-item-name']").first
+    sel = get_not_unique_complex_css_selector(locator)
+    assert sel.startswith("div")
+    assert "class='inventory_item_name '" in sel
+
+
+def test_not_unique_inventory_item_price_selector(logged_in_page):
+    locator = logged_in_page.locator(".inventory_item_price").first
+    sel = get_not_unique_complex_css_selector(locator)
+    assert sel.startswith("div")
+    assert "class='inventory_item_price'" in sel
+
+
+def test_not_unique_add_to_cart_button_selector(logged_in_page):
+    locator = logged_in_page.locator("#add-to-cart-sauce-labs-backpack").first
+    sel = get_not_unique_complex_css_selector(locator)
+    assert sel.startswith("button")
+    assert "class='btn btn_primary btn_small btn_inventory '" in sel
+
+
+def test_not_unique_cart_icon_selector(logged_in_page):
+    locator = logged_in_page.locator("#shopping_cart_container")
+    sel = get_not_unique_complex_css_selector(locator)
+    assert sel.startswith("div")
+    assert "class='shopping_cart_container'" in sel
+
+
+def _assert_unique(page: Page, selector: str, expected_text: str):
+    """Helper to verify selector is unique and matches expected text content."""
+    assert selector and selector.startswith("xpath="), f"Invalid selector: {selector}"
+    loc = page.locator(selector)
+    assert loc.count() == 1, f"Selector not unique: {selector}"
+    if expected_text:
+        text = loc.inner_text().strip()
+        assert expected_text in text, f"Expected '{expected_text}', got '{text}'"
+
+
+def test_add_to_cart_button_by_product_name(logged_in_page: Page):
+    btn = logged_in_page.locator("button.btn_inventory").first
+    xp = get_xpath_selector_by_sibling_text(btn, "Sauce Labs Backpack")
+    _assert_unique(logged_in_page, xp, "Add to cart")
+
+
+def test_price_by_product_name(logged_in_page: Page):
+    price = logged_in_page.locator("div[data-test='inventory-item-price']").first
+    xp = get_xpath_selector_by_sibling_text(price, "Sauce Labs Backpack")
+    # If function gives container div, check that within it exists price
+    assert xp and xp.startswith("xpath=")
+    assert "$29.99" in logged_in_page.locator(xp).inner_text()
+
+
+def test_inventory_item_name_by_description(logged_in_page: Page):
+    name = logged_in_page.locator(".inventory_item_desc").first
+    xp = get_xpath_selector_by_sibling_text(name, "Sauce Labs Backpack")
+    # Allow None if no exact match, but check contains text fallback works
+    assert xp and xp.startswith("xpath=")
+    assert "carry.allTheThings() with the sleek, streamlined" in logged_in_page.locator(xp).inner_text()

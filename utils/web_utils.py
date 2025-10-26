@@ -5,8 +5,7 @@ from pynput import keyboard
 from typing import Optional
 import re
 import utils.keyboard_utils as ku
-from playwright.sync_api import Page, Locator
-from tkinter import messagebox, simpledialog
+from playwright.sync_api import Locator
 
 
 from playwright.sync_api import Page
@@ -332,6 +331,57 @@ def get_complex_css_selector(locator: Locator) -> str | None:
     return None
 
 
+from typing import Optional
+from playwright.sync_api import Locator
+
+def get_not_unique_complex_css_selector(locator: Locator) -> Optional[str]:
+    """
+    Generate a not-unique (may return multiple elements) CSS selector
+    for a Playwright Locator element:
+      1. Start with the tag name.
+      2. Add all available attributes among a predefined set.
+
+    Example: div[class='foo'][data-test='login']
+    """
+
+    attrs_to_check = [
+        "class", "type", "role", "aria-label", "placeholder",
+        "draggable", "spellcheck", "translate", "contenteditable",
+        "autocapitalize", "enterkeyhint", "required", "pattern",
+        "data-role", "data-user", "aria-labelledby", "aria-required"
+    ]
+
+    element_info = locator.evaluate(f"""el => {{
+        if (!el) return null;
+        const attrs = {{}};
+        for (const a of {attrs_to_check!r}) {{
+            const val = el.getAttribute(a);
+            if (val) attrs[a] = val;
+        }}
+        return {{
+            tag: el.tagName.toLowerCase(),
+            attrs
+        }};
+    }}""")
+
+    if not element_info:
+        return None
+
+    tag = element_info["tag"]
+    attrs = element_info["attrs"]
+
+    def escape_css(value: str) -> str:
+        # Escape quotes for safe CSS
+        return value.replace("'", "\\'")
+
+    selector = tag
+    for k, v in attrs.items():
+        selector += f"[{k}='{escape_css(v)}']"
+
+    return selector
+
+
+
 def get_css_selector_by_parent(locator: Locator) -> Optional[str]:
     """
     Generate a CSS selector string for a Locator using a unique parent selector + child tag.
@@ -632,6 +682,62 @@ def get_complex_xpath_selector_by_index(locator: Locator) -> Optional[str]:
         try:
             if compare_locators_geometry(locator, page.locator(xpath_wit_index)):
                 return xpath_wit_index
+
+        except Exception:
+            pass
+
+    return None
+
+
+def get_xpath_selector_by_sibling_text(locator: Locator, text: str) -> Optional[str]:
+    """
+    Build an XPath for a target element using a sibling (or nested sibling) with known text.
+
+    Steps:
+      1. Try to locate an exact-text sibling: //*[text()='text']
+      2. If not unique, try contains(text(),'text')
+      3. Walk up to a common parent (1–4 levels up).
+      4. Build XPath like: //*[text()='text']/../..//<target_xpath>
+
+    Args:
+        locator (Locator): Playwright locator for the target element.
+        text (str): Text content of sibling element.
+
+    Returns:
+        str | None: XPath selector string if unique, else None.
+    """
+    page = locator.page
+
+    # Exact text first
+    sibling_xpath = f"//*[normalize-space(text())='{text}']"
+    count = page.locator("xpath=" + sibling_xpath).count()
+
+    if count != 1:
+        # Try contains text fallback
+        sibling_xpath = f"//*[contains(normalize-space(text()), '{text}')]"
+        count = page.locator("xpath=" + sibling_xpath).count()
+
+        if count != 1:
+            return None
+
+    target_css = get_not_unique_complex_css_selector(locator)
+
+    if not target_css:
+        return None
+
+    target_xpath = css_to_xpath(target_css)
+    sibling_xpath = sibling_xpath.replace("xpath=", "")
+    target_xpath = target_xpath.replace("xpath=", "")
+    parent_xpath = "/.."
+
+    # Try up to 4 parent levels
+    for level in range(1, 5):
+        try:
+            result_xpath = f"xpath={sibling_xpath}{parent_xpath}{target_xpath}"
+            parent_xpath += "/.."
+
+            if page.locator(result_xpath).count() == 1:
+                return result_xpath
 
         except Exception:
             pass
