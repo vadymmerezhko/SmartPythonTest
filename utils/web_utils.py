@@ -415,9 +415,6 @@ def get_css_selector_by_sibling(locator: Locator) -> Optional[str]:
     return None
 
 
-from typing import Optional
-from playwright.sync_api import Locator
-
 def get_xpath_selector_by_text(locator: Locator) -> Optional[str]:
     """
     Build a unique XPath for the given element based on its visible text.
@@ -478,14 +475,56 @@ def get_xpath_selector_by_text(locator: Locator) -> Optional[str]:
     # exact-text case
     if payload["exactCount"] >= 1 and payload["exactIndex"] >= 1:
         if payload["exactCount"] == 1:
-            return f"//{t}[normalize-space(.)={lit}]"
-        return f"(//{t}[normalize-space(.)={lit}])[{payload['exactIndex']}]"
+            return f"xpath=//{t}[normalize-space(.)={lit}]"
+        return f"xpath=(//{t}[normalize-space(.)={lit}])[{payload['exactIndex']}]"
 
     # contains-text case
     if payload["containsCount"] >= 1 and payload["containsIndex"] >= 1:
         if payload["containsCount"] == 1:
-            return f"//{t}[contains(normalize-space(.), {lit})]"
-        return f"(//{t}[contains(normalize-space(.), {lit})])[{payload['containsIndex']}]"
+            return f"xpath=//{t}[contains(normalize-space(.), {lit})]"
+        return f"xpath=(//{t}[contains(normalize-space(.), {lit})])[{payload['containsIndex']}]"
+
+    return None
+
+
+def get_xpath_selector_by_parent_text(locator: Locator) -> Optional[str]:
+    """
+    Find a unique XPath for an element by climbing up to a parent that has unique text.
+    Then return "<parent_xpath>//<child_tag>".
+    """
+
+    # Get child tag name once
+    child_tag = locator.evaluate("el => el.tagName.toLowerCase()")
+    if not child_tag:
+        return None
+
+    current = locator
+    while True:
+        try:
+            parent = current.locator("..")
+            parent_tag = parent.evaluate("el => el.tagName.toLowerCase()")
+        except Exception:
+            break  # reached root
+
+        if not parent_tag or parent_tag.lower() == "html":
+            break
+
+        # Try to build unique text-based selector for this parent
+        parent_xpath = get_xpath_selector_by_text(parent)
+        parent_xpath = parent_xpath.replace("xpath=", "")
+
+        if parent_xpath:
+            # Combine parent xpath with original child's tag
+            candidate = f"{parent_xpath}//{child_tag}"
+            count = locator.page.evaluate(
+                """(sel) => document.evaluate(sel, document, null,
+                    XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength""",
+                candidate,
+            )
+            if count == 1:
+                return "xpath=" + candidate
+
+        current = parent
 
     return None
 
@@ -522,6 +561,9 @@ def get_unique_element_selector(locator: Locator) -> str | None:
 
     if not selector:
         selector = get_xpath_selector_by_text(locator)
+
+    if not selector:
+        selector = get_xpath_selector_by_parent_text(locator)
 
     return selector
 
