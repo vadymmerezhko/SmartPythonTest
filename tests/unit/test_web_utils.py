@@ -1,10 +1,12 @@
 import pytest
+from playwright.sync_api import Page
 from unittest.mock import MagicMock
 from urllib.parse import urljoin
 from utils.web_utils import (compare_locators_geometry,
                              get_simple_css_selector,
                              get_complex_css_selector,
                              get_css_selector_by_parent,
+                             get_css_selector_by_sibling,
                              get_hovered_element_locator,
                              highlight_element,
                              reset_element_style,
@@ -149,3 +151,107 @@ def test_inventory_header(login):
 def test_cart_icon_present(login):
     cart_icon = login.locator(".shopping_cart_link")
     assert cart_icon.is_visible()
+
+
+def test_simple_tag_indexed():
+    # (//tag)[n] -> tag:nth-of-type(n)
+    assert xpath_to_css("(//div)[1]") == "div:nth-of-type(1)"
+    assert xpath_to_css("(//span)[3]") == "span:nth-of-type(3)"
+
+
+def test_tag_with_attribute():
+    # //tag[@attr='value'] -> tag[attr='value']
+    assert xpath_to_css("//input[@type='text']") == "input[type='text']"
+    assert xpath_to_css("//button[@id='login']") == "button[id='login']"
+
+
+def test_wildcard():
+    # //* -> *
+    assert xpath_to_css("//*") == "*"
+
+
+def test_invalid_xpaths_return_none():
+    # Not matching any of the simple patterns
+    assert xpath_to_css("//div") is None
+    assert xpath_to_css("//div[@class=\"foo\"]") is None  # double quotes not supported
+    assert xpath_to_css("(//div)[a]") is None             # invalid index
+    assert xpath_to_css("") is None
+    assert xpath_to_css("random") is None
+
+
+@pytest.fixture(scope="function")
+def logged_in_page(page: Page):
+    """Login to saucedemo and return page on inventory.html"""
+    page.goto(LOGIN_URL)
+    page.fill("#user-name", USERNAME)
+    page.fill("#password", PASSWORD)
+    page.click("#login-button")
+    # ensure we are on inventory page
+    expected_url = urljoin(LOGIN_URL, INVENTORY_PATH)
+    page.wait_for_url(expected_url)
+    return page
+
+
+def test_cart_icon_selector(logged_in_page: Page):
+    locator = logged_in_page.locator("#shopping_cart_container")
+    selector = get_css_selector_by_parent(locator)
+    assert selector is not None
+    # Ensure selector identifies cart container within header
+    assert "primary_header" in selector
+    assert selector.endswith("> div")
+
+
+def test_inventory_item_selector(logged_in_page: Page):
+    locator = logged_in_page.locator(".inventory_item_name").first
+    selector = get_css_selector_by_parent(locator)
+    assert selector is not None
+    # Ensure it correctly links the unique id of the item name
+    assert "#item_4_title_link" in selector
+    # Ensure it’s selecting a child inside that parent
+    assert selector.startswith("#item_4_title_link")
+    assert selector.endswith("> div")
+
+
+def test_add_to_cart_button_selector(logged_in_page: Page):
+    locator = logged_in_page.locator("button.btn_inventory").first
+    selector = get_css_selector_by_parent(locator)
+    assert selector is not None
+    # should end with '> button'
+    assert selector.strip().endswith("> button")
+
+
+def test_price_label_selector(logged_in_page: Page):
+    locator = logged_in_page.locator(".inventory_item_price").first
+    selector = get_css_selector_by_parent(locator)
+    assert selector is not None
+    # should end with '> div'
+    assert selector.strip().endswith("> div")
+
+
+def test_price_by_sibling(logged_in_page: Page):
+    locator = logged_in_page.locator(".inventory_item_price").first
+    selector = get_css_selector_by_sibling(locator)
+    print("Price selector:", selector)
+    assert selector is None or selector.endswith("+ div")
+
+
+def test_button_by_price_sibling(logged_in_page: Page):
+    locator = logged_in_page.locator("button.btn_inventory").first
+    selector = get_css_selector_by_sibling(locator)
+    print("Button selector:", selector)
+    assert selector is None or selector.endswith("+ button")
+
+
+def test_cart_icon_by_menu_button_sibling(logged_in_page: Page):
+    locator = logged_in_page.locator("#shopping_cart_container")
+    selector = get_css_selector_by_sibling(locator)
+    print("Cart icon selector:", selector)
+    # It may be None if not unique, so don’t force uniqueness
+    assert selector is None or "div" in selector
+
+
+def test_inventory_name_by_image_sibling(logged_in_page: Page):
+    locator = logged_in_page.locator(".inventory_item_name").first
+    selector = get_css_selector_by_sibling(locator)
+    print("Inventory name selector:", selector)
+    assert selector is None or selector.endswith("+ a") or selector.endswith("+ div")

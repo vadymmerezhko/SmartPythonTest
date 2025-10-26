@@ -344,6 +344,77 @@ def get_css_selector_by_parent(locator: Locator) -> Optional[str]:
     return None
 
 
+def get_css_selector_by_sibling(locator: Locator) -> Optional[str]:
+    """
+    Generate a CSS selector string for a Locator using a unique sibling selector.
+
+    Algorithm:
+      1. Get the target element's tag name.
+      2. Look for previous and next siblings of the element.
+      3. For each sibling:
+         - Try get_simple_css_selector(sibling).
+         - If None, try get_complex_css_selector(sibling).
+         - If a unique selector is found:
+             - Combine with sibling + adjacent combinator (+ or ~).
+             - Return "<sibling_selector> + <child_tag>" or "<sibling_selector> ~ <child_tag>".
+      4. If no unique sibling selector found → return None.
+
+    Args:
+        locator (Locator): Playwright Locator for the element.
+
+    Returns:
+        str | None: Unique CSS selector using sibling relation, else None.
+    """
+
+    # Get child tag name
+    element_info = locator.evaluate("""el => {
+        if (!el) return null;
+        return { tag: el.tagName.toLowerCase() };
+    }""")
+    if not element_info:
+        return None
+
+    child_tag = element_info["tag"]
+
+    # Try previous sibling
+    prev_info = locator.evaluate("""el => {
+        if (!el || !el.previousElementSibling) return null;
+        return {
+            tag: el.previousElementSibling.tagName.toLowerCase()
+        };
+    }""")
+    if prev_info:
+        sibling = locator.locator("xpath=preceding-sibling::*[1]")
+        sib_sel = get_simple_css_selector(sibling) or get_complex_css_selector(sibling)
+        if sib_sel:
+            candidate = f"{sib_sel} + {child_tag}"
+            is_unique = locator.page.evaluate(
+                """sel => document.querySelectorAll(sel).length === 1""", candidate
+            )
+            if is_unique:
+                return candidate
+
+    # Try next sibling
+    next_info = locator.evaluate("""el => {
+        if (!el || !el.nextElementSibling) return null;
+        return {
+            tag: el.nextElementSibling.tagName.toLowerCase()
+        };
+    }""")
+    if next_info:
+        sibling = locator.locator("xpath=following-sibling::*[1]")
+        sib_sel = get_simple_css_selector(sibling) or get_complex_css_selector(sibling)
+        if sib_sel:
+            candidate = f"{sib_sel} + {child_tag}"
+            is_unique = locator.page.evaluate(
+                """sel => document.querySelectorAll(sel).length === 1""", candidate
+            )
+            if is_unique:
+                return candidate
+
+    return None
+
+
 def get_unique_element_selector(locator: Locator) -> str | None:
     """
     Build a unique CSS selector string for the given Playwright Locator.
@@ -370,6 +441,9 @@ def get_unique_element_selector(locator: Locator) -> str | None:
 
     if not selector:
         selector = get_css_selector_by_parent(locator)
+
+    if not selector:
+        selector = get_css_selector_by_sibling(locator)
 
     return selector
 
