@@ -9,9 +9,11 @@ from utils.web_utils import (compare_locators_geometry,
                              get_css_selector_by_sibling,
                              get_xpath_selector_by_text,
                              get_xpath_selector_by_parent_text,
+                             get_complex_xpath_selector_by_index,
                              get_hovered_element_locator,
                              highlight_element,
                              reset_element_style,
+                             css_to_xpath,
                              xpath_to_css)
 
 LOGIN_URL = "https://www.saucedemo.com/"
@@ -300,3 +302,90 @@ def test_inventory_item_name_by_parent_text(logged_in_page: Page):
     assert xp is not None
     # verify xpath selects same element
     assert _xpath_count(logged_in_page, xp) == 1
+
+
+def test_id_selector():
+    css = "#user-name"
+    xpath = css_to_xpath(css)
+    assert xpath == "//*[@id='user-name']"
+
+
+def test_class_selector():
+    css = ".input-field"
+    xpath = css_to_xpath(css)
+    assert xpath == "//*[@class='input-field']"
+
+
+def test_tag_only():
+    css = "div"
+    xpath = css_to_xpath(css)
+    assert xpath == "//div"
+
+
+def test_wildcard():
+    css = "*"
+    xpath = css_to_xpath(css)
+    assert xpath == "//*"
+
+
+def test_tag_with_class():
+    css = "span.highlight"
+    xpath = css_to_xpath(css)
+    assert xpath == "//span[@class='highlight']"
+
+
+def test_tag_with_attribute():
+    css = "input[type='text']"
+    xpath = css_to_xpath(css)
+    assert xpath == "//input[@type='text']"
+
+
+def test_tag_with_multiple_attributes():
+    css = "input[type='text'][name='username'][placeholder='Enter username']"
+    xpath = css_to_xpath(css)
+    assert xpath == "//input[@type='text' and @name='username' and @placeholder='Enter username']"
+
+
+def test_tag_with_class_and_attribute():
+    css = "button.primary[type='submit']"
+    xpath = css_to_xpath(css)
+    assert xpath == "//button[@class='primary' and @type='submit']"
+
+
+def test_trimmed_input():
+    css = "   div[id='container']   "
+    xpath = css_to_xpath(css)
+    assert xpath == "//div[@id='container']"
+
+def _assert_unique_xpath(page: Page, xp: str, expected_text: str = None):
+    """Helper: ensure XPath selects exactly one element and optional text check."""
+    matches = page.locator(xp)
+    count = matches.count()
+    assert count == 1, f"Expected unique XPath, but found {count} elements: {xp}"
+    if expected_text:
+        assert matches.inner_text().strip() == expected_text
+
+def test_inventory_item_name_xpath_by_index(logged_in_page: Page):
+    locator = logged_in_page.locator("div[data-test='inventory-item-name']").first
+    xp = get_complex_xpath_selector_by_index(locator)
+    assert xp and xp.startswith("xpath=")
+    assert compare_locators_geometry(locator, logged_in_page.locator(xp))
+
+def test_inventory_price_xpath(logged_in_page: Page):
+    locator = logged_in_page.locator(".inventory_item_price").first
+    xp = get_complex_xpath_selector_by_index(locator)
+    assert xp and xp.startswith("xpath=")
+    _assert_unique_xpath(logged_in_page, xp, "$29.99")
+
+def test_add_to_cart_button_xpath_by_index(logged_in_page: Page):
+    locator = logged_in_page.locator("button.btn_inventory").first
+    xp = get_complex_xpath_selector_by_index(locator)
+    assert xp and xp.startswith("xpath=")
+    _assert_unique_xpath(logged_in_page, xp, "Add to cart")
+
+def test_cart_icon_xpath_by_index(logged_in_page: Page):
+    locator = logged_in_page.locator("#shopping_cart_container")
+    xp = get_complex_xpath_selector_by_index(locator)
+    assert xp and xp.startswith("xpath=")
+    _assert_unique_xpath(logged_in_page, xp)
+

@@ -3,8 +3,10 @@ import pyautogui
 from itertools import combinations
 from pynput import keyboard
 from typing import Optional
+import re
 import utils.keyboard_utils as ku
 from playwright.sync_api import Page, Locator
+from tkinter import messagebox, simpledialog
 
 
 from playwright.sync_api import Page
@@ -133,7 +135,6 @@ def xpath_to_css(xpath: str) -> Optional[str]:
     - //* -> *
     This is not a full converter but good enough for Playwright fallbacks.
     """
-    import re
 
     # (//tag)[n]
     match = re.match(r"^\(//(\w+)\)\[(\d+)\]$", xpath)
@@ -152,6 +153,55 @@ def xpath_to_css(xpath: str) -> Optional[str]:
         return "*"
 
     return None
+
+
+def css_to_xpath(css: str) -> str:
+    """
+    Naive CSS → XPath converter for simple selectors.
+
+    Supports:
+      - tag[attr='value'][attr2='value2'] → //tag[@attr='value' and @attr2='value2']
+      - #id → //*[@id='id']
+      - .class → //*[@class='class']
+      - tag.class → //tag[@class='class']
+      - * → //*
+
+    Args:
+        css (str): CSS selector string.
+
+    Returns:
+        str: Equivalent XPath string.
+    """
+    css = css.strip()
+
+    # Handle ID (#id)
+    if css.startswith("#"):
+        return f"//*[@id='{css[1:]}']"
+
+    # Handle class (.class)
+    if css.startswith("."):
+        return f"//*[@class='{css[1:]}']"
+
+    # Extract tag name (or * if none)
+    tag_match = re.match(r"^([a-zA-Z0-9*]+)", css)
+    tag = tag_match.group(1) if tag_match else "*"
+
+    # Extract .class in tag.class
+    class_match = re.search(r"\.([a-zA-Z0-9_-]+)", css)
+    attr_exprs = []
+    if class_match:
+        attr_exprs.append(f"@class='{class_match.group(1)}'")
+
+    # Extract attributes [attr='value']
+    attrs = re.findall(r"\[([^\]=]+)='([^']+)'\]", css)
+    for k, v in attrs:
+        attr_exprs.append(f"@{k}='{v}'")
+
+    # Build XPath
+    if attr_exprs:
+        return f"//{tag}[" + " and ".join(attr_exprs) + "]"
+    else:
+        return f"//{tag}"
 
 
 def get_simple_css_selector(locator: Locator) -> str | None:
@@ -529,6 +579,66 @@ def get_xpath_selector_by_parent_text(locator: Locator) -> Optional[str]:
     return None
 
 
+def get_complex_xpath_selector_by_index(locator: Locator) -> Optional[str]:
+    """
+    Generate a unique XPath selector for a Playwright Locator:
+      1. Get CSS selector (simple → complex → fallback tag+class).
+      2. Convert CSS → XPath.
+      3. Add index [n] so that (//xpath)[n] matches exactly this element.
+    """
+    page = locator.page
+
+    # Step 1: Try simple CSS first
+    css_sel = get_simple_css_selector(locator)
+    if not css_sel:
+        css_sel = get_complex_css_selector(locator)
+
+    # Fallback: tag + classes
+    if not css_sel:
+        try:
+            tag = locator.evaluate("el => el.tagName.toLowerCase()")
+            classes = locator.evaluate("el => el.className")
+
+            if tag:
+                if classes:
+                    css_sel = f"{tag}[class='{classes}']"
+                else:
+                    css_sel = tag
+
+        except Exception:
+            pass
+
+    if not css_sel:
+        return None
+
+    # Step 2: Convert CSS → XPath
+    base_xpath = "xpath=" + css_to_xpath(css_sel)
+
+    if not base_xpath:
+        return None
+
+    # Step 3: Count all matches
+    all_matches = page.locator(base_xpath)
+    total = all_matches.count()
+
+    if total == 0:
+        return None
+
+    # Step 4: Find this element’s index
+    for i in range(total):
+        xpath_without_prefix = base_xpath.replace("xpath=", "")
+        xpath_wit_index = f"xpath=({xpath_without_prefix})[{i + 1}]"
+
+        try:
+            if compare_locators_geometry(locator, page.locator(xpath_wit_index)):
+                return xpath_wit_index
+
+        except Exception:
+            pass
+
+    return None
+
+
 def get_unique_element_selector(locator: Locator) -> str | None:
     """
     Build a unique CSS selector string for the given Playwright Locator.
@@ -564,6 +674,9 @@ def get_unique_element_selector(locator: Locator) -> str | None:
 
     if not selector:
         selector = get_xpath_selector_by_parent_text(locator)
+
+    if not selector:
+        selector = get_complex_xpath_selector_by_index(locator)
 
     return selector
 
