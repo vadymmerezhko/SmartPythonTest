@@ -415,6 +415,81 @@ def get_css_selector_by_sibling(locator: Locator) -> Optional[str]:
     return None
 
 
+from typing import Optional
+from playwright.sync_api import Locator
+
+def get_xpath_selector_by_text(locator: Locator) -> Optional[str]:
+    """
+    Build a unique XPath for the given element based on its visible text.
+    - If multiple elements share the text, include index: (//tag[predicate])[n]
+    - If only one element matches, return simple form: //tag[predicate]
+    """
+
+    def _xpath_literal(s: str) -> str:
+        """Safely embed text with quotes into XPath."""
+        if "'" not in s:
+            return f"'{s}'"
+        if '"' not in s:
+            return f'"{s}"'
+        # both quotes exist → concat form
+        parts = s.split("'")
+        return "concat(" + ", ".join([f"'{p}'" for p in parts[:-1]] + ["\"'\"", f"'{parts[-1]}'"]) + ")"
+
+    info = locator.evaluate(
+        """(el) => {
+            if (!el) return null;
+            const tag = el.tagName.toLowerCase();
+            let t = (el.innerText ?? el.textContent ?? "").replace(/\\s+/g, " ").trim();
+            return { tag, text: t };
+        }"""
+    )
+    if not info or not info.get("text"):
+        return None
+
+    tag = info["tag"]
+    text = info["text"]
+
+    payload = locator.evaluate(
+        """(el) => {
+            const tag = el.tagName.toLowerCase();
+            const norm = s => (s ?? "").replace(/\\s+/g, " ").trim();
+            const text = norm(el.innerText ?? el.textContent ?? "");
+
+            const all = Array.from(document.getElementsByTagName(tag));
+
+            const exact = all.filter(n => norm(n.innerText ?? n.textContent ?? "") === text);
+            const exactIndex = exact.indexOf(el) + 1;
+            const exactCount = exact.length;
+
+            const contains = all.filter(n => norm(n.innerText ?? n.textContent ?? "").includes(text));
+            const containsIndex = contains.indexOf(el) + 1;
+            const containsCount = contains.length;
+
+            return { tag, text, exactCount, exactIndex, containsCount, containsIndex };
+        }"""
+    )
+
+    if not payload:
+        return None
+
+    lit = _xpath_literal(payload["text"])
+    t = payload["tag"]
+
+    # exact-text case
+    if payload["exactCount"] >= 1 and payload["exactIndex"] >= 1:
+        if payload["exactCount"] == 1:
+            return f"//{t}[normalize-space(.)={lit}]"
+        return f"(//{t}[normalize-space(.)={lit}])[{payload['exactIndex']}]"
+
+    # contains-text case
+    if payload["containsCount"] >= 1 and payload["containsIndex"] >= 1:
+        if payload["containsCount"] == 1:
+            return f"//{t}[contains(normalize-space(.), {lit})]"
+        return f"(//{t}[contains(normalize-space(.), {lit})])[{payload['containsIndex']}]"
+
+    return None
+
+
 def get_unique_element_selector(locator: Locator) -> str | None:
     """
     Build a unique CSS selector string for the given Playwright Locator.
@@ -444,6 +519,9 @@ def get_unique_element_selector(locator: Locator) -> str | None:
 
     if not selector:
         selector = get_css_selector_by_sibling(locator)
+
+    if not selector:
+        selector = get_xpath_selector_by_text(locator)
 
     return selector
 

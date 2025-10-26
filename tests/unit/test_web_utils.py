@@ -7,6 +7,7 @@ from utils.web_utils import (compare_locators_geometry,
                              get_complex_css_selector,
                              get_css_selector_by_parent,
                              get_css_selector_by_sibling,
+                             get_xpath_selector_by_text,
                              get_hovered_element_locator,
                              highlight_element,
                              reset_element_style,
@@ -255,3 +256,50 @@ def test_inventory_name_by_image_sibling(logged_in_page: Page):
     selector = get_css_selector_by_sibling(locator)
     print("Inventory name selector:", selector)
     assert selector is None or selector.endswith("+ a") or selector.endswith("+ div")
+
+
+def _xpath_count(page: Page, xpath: str) -> int:
+    return page.evaluate(
+        "(sel) => document.evaluate(sel, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength",
+        xpath,
+    )
+
+def _same_element(page: Page, locator, xpath: str) -> bool:
+    # Compare bounding boxes to ensure it's the same element
+    box_a = locator.bounding_box()
+    h = page.evaluate(
+        "(sel) => document.evaluate(sel, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue",
+        xpath
+    )
+    # Playwright can’t directly return a Node; re-locate via xpath to get a Locator
+    other = page.locator(f"xpath={xpath}")
+    box_b = other.bounding_box()
+    return bool(box_a and box_b and all(abs(box_a[k]-box_b[k]) < 0.5 for k in ["x","y","width","height"]))
+
+def test_add_to_cart_button_xpath(logged_in_page: Page):
+    loc = logged_in_page.locator("button.btn_inventory").first
+    xp = get_xpath_selector_by_text(loc)
+    assert xp is not None
+    assert xp.startswith("(") and "[normalize-space(.)=" in xp or "contains(normalize-space(" in xp
+    assert _xpath_count(logged_in_page, xp) == 1
+    assert _same_element(logged_in_page, loc, xp)
+
+def test_price_xpath(logged_in_page: Page):
+    loc = logged_in_page.locator(".inventory_item_price").first
+    xp = get_xpath_selector_by_text(loc)
+    assert xp is not None
+    assert _xpath_count(logged_in_page, xp) == 1
+    assert _same_element(logged_in_page, loc, xp)
+
+def test_product_name_xpath(logged_in_page: Page):
+    loc = logged_in_page.locator(".inventory_item_name").first
+    xp = get_xpath_selector_by_text(loc)
+    assert xp is not None
+    assert _xpath_count(logged_in_page, xp) == 1
+    assert _same_element(logged_in_page, loc, xp)
+
+def test_element_without_text_returns_none(logged_in_page: Page):
+    # Cart container has no direct text
+    loc = logged_in_page.locator("#shopping_cart_container")
+    xp = get_xpath_selector_by_text(loc)
+    assert xp is None
