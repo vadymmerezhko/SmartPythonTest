@@ -28,6 +28,9 @@ class SmartLocator:
         self.selector = selector
         self.keyword = None
 
+        if not self.selector:
+            self.selector = ""
+
         # Detect field name and source file
         self.field_name, self.source_file = self._get_field_info()
 
