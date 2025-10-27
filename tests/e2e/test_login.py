@@ -18,11 +18,7 @@ def test_login_with_multiple_users(page, config, username, password, product):
 
     inventory_page_url = urljoin(config["demo_base_url"], "inventory.html")
     inventory_page = InventoryPage(page, config)
-
-    inventory_page.get_product_name().set_keyword(product)
-    inventory_page.get_product_image().set_keyword(product)
-    inventory_page.get_product_price().set_keyword(product)
-    inventory_page.get_add_to_cart_button().set_keyword(product)
+    inventory_page.set_keyword(product)
 
     expect(inventory_page.get_page()).to_have_url(inventory_page_url)
     expect(inventory_page.get_header()).to_have_text(INVENTORY_PAGE_HEADER)

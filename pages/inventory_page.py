@@ -31,3 +31,9 @@ class InventoryPage(Page):
 
     def get_add_to_cart_button(self) -> SmartLocator:
         return self.add_to_cart_button
+
+    def set_keyword(self, keyword: str):
+        self.product_name.set_keyword(keyword)
+        self.product_image.set_keyword(keyword)
+        self.product_price.set_keyword(keyword)
+        self.add_to_cart_button.set_keyword(keyword)
