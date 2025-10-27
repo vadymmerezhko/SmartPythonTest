@@ -769,14 +769,7 @@ def get_xpath_selector_by_other_element_text(locator: Locator, text: str) -> Opt
         if check_parent_contains_child(parent_locator, locator) and \
             check_parent_contains_child(parent_locator, other_locator):
 
-            parent_css = get_simple_css_selector(parent_locator)
-
-            if not parent_css:
-                parent_css = get_complex_css_selector(parent_locator)
-
-            if not parent_css:
-                parent_css = get_not_unique_complex_css_selector(parent_locator)
-
+            parent_css = get_not_unique_complex_css_selector(parent_locator)
             parent_xpath = css_to_xpath(parent_css)
             result_xpath = f"xpath={parent_xpath}[.{other_xpath}]{target_xpath}"
             count = page.locator(result_xpath).count()
