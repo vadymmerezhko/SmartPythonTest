@@ -6,6 +6,7 @@ from typing import Optional
 import re
 import utils.keyboard_utils as ku
 from playwright.sync_api import Locator
+from tkinter import simpledialog
 
 
 from playwright.sync_api import Page
@@ -680,7 +681,7 @@ def get_complex_xpath_selector_by_index(locator: Locator) -> Optional[str]:
         xpath_wit_index = f"xpath=({xpath_without_prefix})[{i + 1}]"
 
         try:
-            if compare_locators_geometry(locator, page.locator(xpath_wit_index)):
+            if check_locators_geometry_match(locator, page.locator(xpath_wit_index)):
                 return xpath_wit_index
 
         except Exception:
@@ -716,13 +717,13 @@ def get_xpath_selector_by_other_element_text(locator: Locator, text: str) -> Opt
     page = locator.page
 
     # Exact text first
-    other_xpath = f"//*[normalize-space(text())='{text}']"
-    count = page.locator("xpath=" + other_xpath).count()
+    other_xpath = f"xpath=//*[normalize-space(text())='{text}']"
+    count = page.locator(other_xpath).count()
 
     if count != 1:
-        # Try contains text fallback
-        other_xpath = f"//*[contains(normalize-space(text()), '{text}')]"
-        count = page.locator("xpath=" + other_xpath).count()
+        # Check the text is unique
+        other_xpath = f"xpath=//*[contains(normalize-space(text()), '{text}')]"
+        count = page.locator(other_xpath).count()
 
         if count != 1:
             return None
@@ -732,38 +733,56 @@ def get_xpath_selector_by_other_element_text(locator: Locator, text: str) -> Opt
     if not target_css:
         return None
 
+    other_locator = page.locator(other_xpath)
     target_xpath = css_to_xpath(target_css)
     other_xpath = other_xpath.replace("xpath=", "")
     target_xpath = target_xpath.replace("xpath=", "")
-    parent_xpath = "/.."
-
-    other_locator = page.locator(other_xpath)
 
     # Other element is the same as the target element
-    if compare_locators_geometry(locator, other_locator):
+    if check_locators_geometry_match(locator, other_locator):
         return other_xpath
 
     # Check if other-based xpath actually resolves to our locator
     child_xpath = f"{other_xpath}{target_xpath.replace('xpath=', '')}"
+
     child_locator = page.locator(child_xpath)
     child_count = child_locator.count()
 
-    if child_count == 1 and compare_locators_geometry(locator, child_locator.first):
+    if child_count == 1 and check_locators_geometry_match(locator, child_locator.first):
         return child_xpath
 
-    # Try up to 4 parent levels
-    for level in range(1, 5):
-        try:
-            result_xpath = f"xpath={other_xpath}{parent_xpath}{target_xpath}"
-            parent_xpath += "/.."
+    current_locator = locator
 
-            if page.locator(result_xpath).count() == 1:
+    while True:
+
+        parent_locator = current_locator.locator("..")
+        current_locator = parent_locator
+
+        if not parent_locator:
+            return None
+
+        tag = parent_locator.evaluate("el => el.tagName.toLowerCase()")
+
+        if tag == "html":
+            return None
+
+        if check_parent_contains_child(parent_locator, locator) and \
+            check_parent_contains_child(parent_locator, other_locator):
+
+            parent_css = get_simple_css_selector(parent_locator)
+
+            if not parent_css:
+                parent_css = get_complex_css_selector(parent_locator)
+
+            if not parent_css:
+                parent_css = get_not_unique_complex_css_selector(parent_locator)
+
+            parent_xpath = css_to_xpath(parent_css)
+            result_xpath = f"xpath={parent_xpath}[.{other_xpath}]{target_xpath}"
+            count = page.locator(result_xpath).count()
+
+            if count == 1:
                 return result_xpath
-
-        except Exception:
-            pass
-
-    return None
 
 
 def get_unique_element_selector(locator: Locator, text: str = None) -> str | None:
@@ -812,7 +831,7 @@ def get_unique_element_selector(locator: Locator, text: str = None) -> str | Non
     return selector
 
 
-def compare_locators_geometry(locator1: Locator, locator2: Locator, tolerance: float = 0.5) -> bool:
+def check_locators_geometry_match(locator1: Locator, locator2: Locator, tolerance: float = 0.5) -> bool:
     """
     Compare two locators' position (x, y) and size (width, height).
     Returns True if all values are equal within the given tolerance.
@@ -831,6 +850,37 @@ def compare_locators_geometry(locator1: Locator, locator2: Locator, tolerance: f
             return False
 
     return True
+
+def _contains(parent_box, child_box) -> bool:
+    if not parent_box or not child_box:
+        return False
+
+    px1, py1 = parent_box["x"], parent_box["y"]
+    px2, py2 = px1 + parent_box["width"], py1 + parent_box["height"]
+
+    cx1, cy1 = child_box["x"], child_box["y"]
+    cx2, cy2 = cx1 + child_box["width"], cy1 + child_box["height"]
+
+    return (px1 <= cx1 and py1 <= cy1 and
+            px2 >= cx2 and py2 >= cy2)
+
+
+def check_parent_contains_child(parent: Locator, child: Locator) -> bool:
+    """
+    Compare two locators' position (x, y) and size (width, height).
+    Returns True if all values are equal within the given tolerance.
+    """
+    if parent is None or child is None:
+        return False
+
+    parent_box = parent.bounding_box()
+    child_box = child.bounding_box()
+
+    if not parent_box or not child_box:
+        raise ValueError("One or both locators are not visible, bounding_box() returned None")
+
+    return _contains(parent_box, child_box)
+
 
 def select_element_on_page(page):
     """
@@ -869,7 +919,7 @@ def select_element_on_page(page):
             selected_locator = get_hovered_element_locator(page)
 
             # If the hovered element has changed, update highlight
-            if not compare_locators_geometry(selected_locator, last_locator):
+            if not check_locators_geometry_match(selected_locator, last_locator):
 
                 if last_locator is not None:
                     reset_element_style(last_locator, last_original_style)

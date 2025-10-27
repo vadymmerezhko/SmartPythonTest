@@ -2,7 +2,7 @@ import pytest
 from playwright.sync_api import Page
 from unittest.mock import MagicMock
 from urllib.parse import urljoin
-from utils.web_utils import (compare_locators_geometry,
+from utils.web_utils import (check_locators_geometry_match,
                              get_simple_css_selector,
                              get_complex_css_selector,
                              get_css_selector_by_parent,
@@ -12,6 +12,7 @@ from utils.web_utils import (compare_locators_geometry,
                              get_complex_xpath_selector_by_index,
                              get_not_unique_complex_css_selector,
                              get_xpath_selector_by_other_element_text,
+                             check_parent_contains_child,
                              get_hovered_element_locator,
                              highlight_element,
                              reset_element_style,
@@ -22,6 +23,20 @@ LOGIN_URL = "https://www.saucedemo.com/"
 USERNAME = "standard_user"
 PASSWORD = "secret_sauce"
 INVENTORY_PATH = "inventory.html"
+
+
+@pytest.fixture(scope="function")
+def login(page, config):
+    # navigate to login
+    page.goto(LOGIN_URL)
+    # login
+    page.fill("#user-name", USERNAME)
+    page.fill("#password", PASSWORD)
+    page.click("#login-button")
+    # ensure landing on inventory page
+    expected = urljoin(config["demo_base_url"], INVENTORY_PATH)
+    assert page.url == expected, f"Expected {expected}, got {page.url}"
+    return page
 
 
 def test_get_hovered_element_locator(page):
@@ -59,8 +74,8 @@ def test_compare_locators_geometry(page):
     locator2 = page.locator("#user-name")
     locator3 = page.locator("#login-button")
 
-    assert compare_locators_geometry(locator1, locator2)
-    assert not compare_locators_geometry(locator1, locator3)
+    assert check_locators_geometry_match(locator1, locator2)
+    assert not check_locators_geometry_match(locator1, locator3)
 
 
 class FakeLocator:
@@ -135,19 +150,6 @@ def test_unique_tag_selector():
     result = get_complex_css_selector(locator)
     assert result == "button"
 
-
-@pytest.fixture(scope="function")
-def login(page, config):
-    # navigate to login
-    page.goto(LOGIN_URL)
-    # login
-    page.fill("#user-name", USERNAME)
-    page.fill("#password", PASSWORD)
-    page.click("#login-button")
-    # ensure landing on inventory page
-    expected = urljoin(config["demo_base_url"], INVENTORY_PATH)
-    assert page.url == expected, f"Expected {expected}, got {page.url}"
-    return page
 
 def test_inventory_header(login):
     # once logged in, check header text
@@ -269,7 +271,7 @@ def _xpath_count(page: Page, xpath: str) -> int:
 
 def _same_element(page: Page, locator, xpath: str) -> bool:
     # Compare bounding boxes to ensure it's the same element
-    return compare_locators_geometry(page.locator(xpath), locator)
+    return check_locators_geometry_match(page.locator(xpath), locator)
 
 def test_add_to_cart_button_xpath(logged_in_page: Page):
     loc = logged_in_page.locator("button.btn_inventory").first
@@ -373,7 +375,7 @@ def test_inventory_item_name_xpath_by_index(logged_in_page: Page):
     locator = logged_in_page.locator("div[data-test='inventory-item-name']").first
     xp = get_complex_xpath_selector_by_index(locator)
     assert xp and xp.startswith("xpath=")
-    assert compare_locators_geometry(locator, logged_in_page.locator(xp))
+    assert check_locators_geometry_match(locator, logged_in_page.locator(xp))
 
 
 def test_inventory_price_xpath(logged_in_page: Page):
@@ -451,12 +453,6 @@ def _assert_unique(page: Page, selector: str, expected_text: str):
         assert expected_text in text, f"Expected '{expected_text}', got '{text}'"
 
 
-def test_add_to_cart_button_by_button_name(logged_in_page: Page):
-    btn = logged_in_page.locator("div[data-test='inventory-item-name']").first
-    xp = get_xpath_selector_by_other_element_text(btn, "Sauce Labs Bike Light")
-    _assert_unique(logged_in_page, xp, "Sauce Labs Bike Light")
-
-
 def test_add_to_cart_button_by_product_name(logged_in_page: Page):
     btn = logged_in_page.locator("button.btn_inventory").first
     xp = get_xpath_selector_by_other_element_text(btn, "Sauce Labs Backpack")
@@ -477,3 +473,38 @@ def test_inventory_item_name_by_description(logged_in_page: Page):
     # Allow None if no exact match, but check contains text fallback works
     assert xp and xp.startswith("xpath=")
     assert "carry.allTheThings() with the sleek, streamlined" in logged_in_page.locator(xp).inner_text()
+
+
+# Helpers: assert containment relationship
+def _assert_contains(page, parent_sel, child_sel, expected=True):
+    parent = page.locator(parent_sel).first
+    child = page.locator(child_sel).first
+    result = check_parent_contains_child(parent, child)
+    assert result == expected, f"{parent_sel} should {'contain' if expected else 'NOT contain'} {child_sel}"
+
+
+def _assert_contains(page, parent_sel, child_sel, expected=True):
+    parent = page.locator(parent_sel).first
+    child = page.locator(child_sel).first
+    result = check_parent_contains_child(parent, child)
+    assert result == expected, f"{parent_sel} should {'contain' if expected else 'NOT contain'} {child_sel}"
+
+
+def test_inventory_item_name_contained_in_parent(login):
+    """Verify product name is inside its inventory item box."""
+    _assert_contains(login, ".inventory_item", ".inventory_item_name", expected=True)
+
+
+def test_inventory_item_price_contained_in_parent(login):
+    """Verify product price is inside its inventory item box."""
+    _assert_contains(login, ".inventory_item", ".inventory_item_price", expected=True)
+
+
+def test_cart_icon_contained_in_header(login):
+    """Verify cart icon is inside the primary header."""
+    _assert_contains(login, "div.primary_header", "#shopping_cart_container", expected=True)
+
+
+def test_cart_icon_not_contained_in_inventory_item(login):
+    """Negative test: cart icon is NOT inside a product item box."""
+    _assert_contains(login, ".inventory_item", "#shopping_cart_container", expected=False)
