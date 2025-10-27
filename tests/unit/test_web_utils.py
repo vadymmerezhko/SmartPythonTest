@@ -11,7 +11,7 @@ from utils.web_utils import (compare_locators_geometry,
                              get_xpath_selector_by_parent_text,
                              get_complex_xpath_selector_by_index,
                              get_not_unique_complex_css_selector,
-                             get_xpath_selector_by_sibling_text,
+                             get_xpath_selector_by_other_element_text,
                              get_hovered_element_locator,
                              highlight_element,
                              reset_element_style,
@@ -451,15 +451,21 @@ def _assert_unique(page: Page, selector: str, expected_text: str):
         assert expected_text in text, f"Expected '{expected_text}', got '{text}'"
 
 
+def test_add_to_cart_button_by_button_name(logged_in_page: Page):
+    btn = logged_in_page.locator("div[data-test='inventory-item-name']").first
+    xp = get_xpath_selector_by_other_element_text(btn, "Sauce Labs Bike Light")
+    _assert_unique(logged_in_page, xp, "Sauce Labs Bike Light")
+
+
 def test_add_to_cart_button_by_product_name(logged_in_page: Page):
     btn = logged_in_page.locator("button.btn_inventory").first
-    xp = get_xpath_selector_by_sibling_text(btn, "Sauce Labs Backpack")
+    xp = get_xpath_selector_by_other_element_text(btn, "Sauce Labs Backpack")
     _assert_unique(logged_in_page, xp, "Add to cart")
 
 
 def test_price_by_product_name(logged_in_page: Page):
     price = logged_in_page.locator("div[data-test='inventory-item-price']").first
-    xp = get_xpath_selector_by_sibling_text(price, "Sauce Labs Backpack")
+    xp = get_xpath_selector_by_other_element_text(price, "Sauce Labs Backpack")
     # If function gives container div, check that within it exists price
     assert xp and xp.startswith("xpath=")
     assert "$29.99" in logged_in_page.locator(xp).inner_text()
@@ -467,7 +473,7 @@ def test_price_by_product_name(logged_in_page: Page):
 
 def test_inventory_item_name_by_description(logged_in_page: Page):
     name = logged_in_page.locator(".inventory_item_desc").first
-    xp = get_xpath_selector_by_sibling_text(name, "Sauce Labs Backpack")
+    xp = get_xpath_selector_by_other_element_text(name, "Sauce Labs Backpack")
     # Allow None if no exact match, but check contains text fallback works
     assert xp and xp.startswith("xpath=")
     assert "carry.allTheThings() with the sleek, streamlined" in logged_in_page.locator(xp).inner_text()

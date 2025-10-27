@@ -689,33 +689,40 @@ def get_complex_xpath_selector_by_index(locator: Locator) -> Optional[str]:
     return None
 
 
-def get_xpath_selector_by_sibling_text(locator: Locator, text: str) -> Optional[str]:
+def get_xpath_selector_by_other_element_text(locator: Locator, text: str) -> Optional[str]:
     """
-    Build an XPath for a target element using a sibling (or nested sibling) with known text.
+    Build an XPath selector for a target element using the text of a sibling
+    (or a nearby ancestor’s sibling) as an anchor.
 
-    Steps:
-      1. Try to locate an exact-text sibling: //*[text()='text']
-      2. If not unique, try contains(text(),'text')
-      3. Walk up to a common parent (1–4 levels up).
-      4. Build XPath like: //*[text()='text']/../..//<target_xpath>
+    Strategy:
+      1. Look for an element with exact text: //*[normalize-space(text())='text'].
+      2. If not unique, fall back to partial match: //*[contains(normalize-space(text()), 'text')].
+      3. If still not unique, give up (return None).
+      4. Once a unique "other" element is found:
+         - If it geometrically matches the target locator, return its XPath.
+         - Otherwise, try to combine it with the target’s own structure:
+             a. First, check if the target is a child of the text element.
+             b. If not, walk up 1–4 parent levels and attempt to form an XPath like:
+                xpath=//<other_text_xpath>/../..//<target_xpath>
+      5. Return the first XPath that resolves uniquely to the target element.
 
     Args:
-        locator (Locator): Playwright locator for the target element.
-        text (str): Text content of sibling element.
+        locator (Locator): Playwright Locator for the target element.
+        text (str): Text content of the sibling/anchor element.
 
     Returns:
-        str | None: XPath selector string if unique, else None.
+        str | None: A valid, unique XPath selector string if found, else None.
     """
     page = locator.page
 
     # Exact text first
-    sibling_xpath = f"//*[normalize-space(text())='{text}']"
-    count = page.locator("xpath=" + sibling_xpath).count()
+    other_xpath = f"//*[normalize-space(text())='{text}']"
+    count = page.locator("xpath=" + other_xpath).count()
 
     if count != 1:
         # Try contains text fallback
-        sibling_xpath = f"//*[contains(normalize-space(text()), '{text}')]"
-        count = page.locator("xpath=" + sibling_xpath).count()
+        other_xpath = f"//*[contains(normalize-space(text()), '{text}')]"
+        count = page.locator("xpath=" + other_xpath).count()
 
         if count != 1:
             return None
@@ -726,14 +733,28 @@ def get_xpath_selector_by_sibling_text(locator: Locator, text: str) -> Optional[
         return None
 
     target_xpath = css_to_xpath(target_css)
-    sibling_xpath = sibling_xpath.replace("xpath=", "")
+    other_xpath = other_xpath.replace("xpath=", "")
     target_xpath = target_xpath.replace("xpath=", "")
     parent_xpath = "/.."
+
+    other_locator = page.locator(other_xpath)
+
+    # Other element is the same as the target element
+    if compare_locators_geometry(locator, other_locator):
+        return other_xpath
+
+    # Check if other-based xpath actually resolves to our locator
+    child_xpath = f"{other_xpath}{target_xpath.replace('xpath=', '')}"
+    child_locator = page.locator(child_xpath)
+    child_count = child_locator.count()
+
+    if child_count == 1 and compare_locators_geometry(locator, child_locator.first):
+        return child_xpath
 
     # Try up to 4 parent levels
     for level in range(1, 5):
         try:
-            result_xpath = f"xpath={sibling_xpath}{parent_xpath}{target_xpath}"
+            result_xpath = f"xpath={other_xpath}{parent_xpath}{target_xpath}"
             parent_xpath += "/.."
 
             if page.locator(result_xpath).count() == 1:
@@ -745,7 +766,7 @@ def get_xpath_selector_by_sibling_text(locator: Locator, text: str) -> Optional[
     return None
 
 
-def get_unique_element_selector(locator: Locator) -> str | None:
+def get_unique_element_selector(locator: Locator, text: str = None) -> str | None:
     """
     Build a unique CSS selector string for the given Playwright Locator.
 
@@ -764,25 +785,29 @@ def get_unique_element_selector(locator: Locator) -> str | None:
         otherwise None if neither simple nor complex selectors could uniquely
         identify the element.
     """
-    selector = get_simple_css_selector(locator)
 
-    if not selector:
-        selector = get_complex_css_selector(locator)
+    if not text:
+        selector = get_simple_css_selector(locator)
 
-    if not selector:
-        selector = get_css_selector_by_parent(locator)
+        if not selector:
+            selector = get_complex_css_selector(locator)
 
-    if not selector:
-        selector = get_css_selector_by_sibling(locator)
+        if not selector:
+            selector = get_css_selector_by_parent(locator)
 
-    if not selector:
-        selector = get_xpath_selector_by_text(locator)
+        if not selector:
+            selector = get_css_selector_by_sibling(locator)
 
-    if not selector:
-        selector = get_xpath_selector_by_parent_text(locator)
+        if not selector:
+            selector = get_xpath_selector_by_text(locator)
 
-    if not selector:
-        selector = get_complex_xpath_selector_by_index(locator)
+        if not selector:
+            selector = get_xpath_selector_by_parent_text(locator)
+
+        if not selector:
+            selector = get_complex_xpath_selector_by_index(locator)
+    else:
+        selector = get_xpath_selector_by_other_element_text(locator, text)
 
     return selector
 

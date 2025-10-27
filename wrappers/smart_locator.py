@@ -5,6 +5,7 @@ from tkinter import messagebox, simpledialog
 import pathlib
 from utils.web_utils import get_unique_element_selector, select_element_on_page
 
+KEYWORD_PLACEHOLDER = "#KEYWORD"
 
 # Global cache for runtime locator fixes
 FIXED_LOCATORS = {}
@@ -25,6 +26,7 @@ class SmartLocator:
         self.config = owner.config
         self.owner = owner
         self.selector = selector
+        self.keyword = None
 
         # Detect field name and source file
         self.field_name, self.source_file = self._get_field_info()
@@ -35,6 +37,26 @@ class SmartLocator:
         # Reuse fixed locator if already updated this session
         if self.cache_key in FIXED_LOCATORS:
             self.selector = FIXED_LOCATORS[self.cache_key]
+
+    def set_keyword(self, keyword: str):
+        """
+        Sets dynamic data keyword value that:
+        1. Replaces the text match in the element selector string with #KEYWORD# placeholder
+        2. Replaces #KEYWORD# placeholder in the element selector string
+        This allows to use unique keyword variable as identifier.
+        :param keyword: The string value to used instead #KEYWORD# placeholder
+        """
+        self.keyword = keyword
+        # Replace keyword placeholder with keyword value
+        if keyword:
+            self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, keyword)
+            FIXED_LOCATORS[self.cache_key] = self.selector
+
+    def get_keyword(self):
+        """
+        Gets dynamic data keyword value.
+        """
+        return self.keyword
 
     def _get_field_info(self):
         stack = inspect.stack()
@@ -48,6 +70,8 @@ class SmartLocator:
         return "unknown_field", inspect.getfile(self.owner.__class__)
 
     def _locator(self):
+        if self.selector and self.keyword:
+            self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, self.keyword)
         return self.page.locator(self.selector)
 
     @property
@@ -71,6 +95,8 @@ class SmartLocator:
         return target
 
     def __str__(self):
+        if self.selector and self.keyword:
+            self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, self.keyword)
         return f"<SmartLocator field='{self.field_name}' selector='{self.selector}'>"
 
     __repr__ = __str__
@@ -80,10 +106,16 @@ class SmartLocator:
         root.withdraw()
 
         while True:
+
+            if self.selector.strip() == "":
+                self.selector = "Element locator"
+
             new_selector = simpledialog.askstring(
                 "Locator failed",
-                f"Locator '{self.selector}' failed.\n"
-                f"Enter new locator for '{self.cache_key}' and click OK.\n"
+                f"Locator failed: '{self.selector}'\n"
+                f"Element name: '{self.cache_key}'\n"
+                f"Keyword: {self.keyword}\n"
+                f"Enter new locator and click OK to save it.\n"
                 "Or click OK, select element and press Ctrl button.\n"
                 "Or click Cancel to terminate record mode.",
                 initialvalue=self.selector
@@ -94,11 +126,13 @@ class SmartLocator:
 
             if new_selector == self.selector:
                 selected_locator = select_element_on_page(self.page)
-                new_selector = get_unique_element_selector(selected_locator)
+                new_selector = get_unique_element_selector(selected_locator, self.keyword)
 
                 result = messagebox.askokcancel(
                     "Locator confirmation",
-                    f"Locator '{new_selector}' for '{self.cache_key}' found.\n"
+                    f"Locator found: '{new_selector}'\n"
+                    f"Element name: '{self.cache_key}'\n"
+                    f"Keyword: {self.keyword}\n"
                     "Click OK to confirm and save locator.\n"
                     "Or click Cancel to keep updating."
                 )
@@ -119,6 +153,10 @@ class SmartLocator:
         return self.page.locator(new_selector)
 
     def update_source_file(self, new_selector):
+        # replace keyword with placeholder value if not None
+        if self.keyword:
+            new_selector = new_selector.replace(self.keyword, KEYWORD_PLACEHOLDER)
+
         path = pathlib.Path(self.source_file)
         text = path.read_text(encoding="utf-8")
 
