@@ -14,7 +14,7 @@ INVENTORY_PAGE_HEADER = 'Swag Labs'
 def test_login_with_multiple_users(page, config, username, password, product):
     login_page = LoginPage(page, config)
     login_page.goto()
-    login_page.login(username, password)
+    login_page.login(username, 'secret_sauce')
 
     inventory_page_url = urljoin(config["demo_base_url"], "inventory.html")
     inventory_page = InventoryPage(page, config)

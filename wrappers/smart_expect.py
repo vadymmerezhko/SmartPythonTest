@@ -107,7 +107,7 @@ class SmartExpectProxy:
 
                                 result = messagebox.askokcancel(
                                     "Value confirmation",
-                                    f"Expected value found for {filename.name}:{line_no}\n"
+                                    f"Expected value for {filename.name}:{line_no}\n"
                                     f"Expected: {new_value}\n"
                                     "Click OK to confirm and save this value.\n"
                                     "Or click Cancel to retry."

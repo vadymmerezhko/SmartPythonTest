@@ -6,6 +6,32 @@ from playwright.sync_api import sync_playwright
 with open("config.json") as f:
     CONFIG = json.load(f)
 
+# Global storage for the current param row index
+_current_param_row = -1
+
+
+@pytest.fixture(autouse=True)
+def record_param_row(request):
+    global _current_param_row
+    if hasattr(request.node, "callspec"):
+        # pytest stores the index mapping here
+        indices = request.node.callspec.indices
+        # indices is a dict like {'username,password,product': 2}
+        if indices:
+            _current_param_row = list(indices.values())[0]
+        else:
+            _current_param_row = -1
+    else:
+        _current_param_row = -1
+    yield
+    _current_param_row = -1
+
+
+def get_current_param_row() -> int:
+    return _current_param_row
+
+
+
 
 def pytest_addoption(parser):
     parser.addoption(
