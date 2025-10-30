@@ -2,13 +2,13 @@ import pytest
 import tempfile
 import textwrap
 import os
-from utils.class_utils import (get_caller_info,
-                               get_function_parameters_index_map,
-                               update_value_in_function_call,
-                               replace_variable_assignment,
-                               get_parameter_index_from_function_def,
-                               get_data_provider_names_map,
-                               replace_variable_in_data_provider)
+from utils.code_utils import (get_caller_info,
+                              get_function_parameters_index_map,
+                              update_value_in_function_call,
+                              replace_variable_assignment,
+                              get_parameter_index_from_function_def,
+                              get_data_provider_names_map,
+                              replace_variable_in_data_provider)
 
 
 def helper_function():
@@ -313,7 +313,7 @@ def test_preserve_comma_at_end():
 
 import pytest
 import inspect
-from utils.class_utils import normalize_args
+from utils.code_utils import normalize_args
 
 
 # --- Fake functions to simulate Playwright Locator methods --- #

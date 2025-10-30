@@ -8,14 +8,14 @@ import pathlib
 from utils.web_utils import (get_unique_element_selector,
                              select_element_on_page,
                              get_element_value_or_text)
-from utils.class_utils import (get_caller_info,
-                               get_function_parameters_index_map,
-                               update_value_in_function_call,
-                               get_parameter_index_from_function_def,
-                               replace_variable_assignment,
-                               get_data_provider_names_map,
-                               replace_variable_in_data_provider,
-                               normalize_args)
+from utils.code_utils import (get_caller_info,
+                              get_function_parameters_index_map,
+                              update_value_in_function_call,
+                              get_parameter_index_from_function_def,
+                              replace_variable_assignment,
+                              get_data_provider_names_map,
+                              replace_variable_in_data_provider,
+                              normalize_args)
 from utils.text_utils import replace_line_in_text
 
 KEYWORD_PLACEHOLDER = "#KEYWORD"
