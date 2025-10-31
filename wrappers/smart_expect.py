@@ -5,11 +5,16 @@ import re
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 from playwright.sync_api import expect as pw_expect, Page, Locator, APIResponse
+from helpers.code_update_helper import fix_noname_parameter_none_value
 from wrappers.smart_locator import SmartLocator
 from utils.web_utils import select_element_on_page, get_element_value_or_text
 
 FIXED_EXPECTS = {}
 
+EXPECTED_TYPE = "expected"
+
+# Global cache for runtime keyword fixes
+FIXED_EXPECTED_VALUES = {}
 
 class SmartExpectProxy:
     def __init__(self, actual):
@@ -44,13 +49,14 @@ class SmartExpectProxy:
                     try:
                         count = self._smart_locator.locator.count()
                         if count == 0 and self._smart_locator.config.get("record_mode"):
-                            print(f"[SmartExpect] Healing locator in {self._smart_locator.cache_key}...")
+
                             fixed_locator = self._smart_locator.handle_missing_locator()
                             self._inner = pw_expect(fixed_locator)
                             target = getattr(self._inner, item)
+
                     except Exception:
                         if self._smart_locator.config.get("record_mode"):
-                            print(f"[SmartExpect] Locator resolution failed for {self._smart_locator.cache_key}, healing...")
+
                             fixed_locator = self._smart_locator.handle_missing_locator()
                             self._inner = pw_expect(fixed_locator)
                             target = getattr(self._inner, item)
@@ -140,6 +146,19 @@ class SmartExpectProxy:
 
     def __dir__(self):
         return dir(self._inner)
+
+    def validate_expected_value(self, expected_value: str):
+        new_expected_value = None
+
+        if not expected_value:
+            if self.cache_key in FIXED_EXPECTED_VALUES:
+                new_expected_value = FIXED_EXPECTED_VALUES[self.cache_key]
+            else :
+                # Fix keyword None or empty value in record mode
+                new_expected_value = fix_noname_parameter_none_value(EXPECTED_TYPE, self.page, 0)
+                FIXED_EXPECTED_VALUES[self.cache_key] = self.keyword
+
+        return new_expected_value
 
 
 # ---------------- helpers ---------------- #
