@@ -15,4 +15,4 @@ def test_login_with_multiple_users(page, config, username, password, product):
 
     inventory_page = InventoryPage(page, config)
     inventory_page.set_keyword(product)
-    #inventory_page.verify_page(product, "Add to cart")
+    inventory_page.verify_page(product, "Add to cart")

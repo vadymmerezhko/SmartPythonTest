@@ -32,4 +32,4 @@ class InventoryPage(Page):
         # expect(self.product_name).to_contain_text(product)
         expect(self.product_image).to_be_visible()
         expect(self.product_price).to_be_visible()
-        expect(self.add_to_cart_button).to_have_text("")
+        expect(self.add_to_cart_button).to_have_text(button_text)
