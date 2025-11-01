@@ -20,15 +20,20 @@ from utils.text_utils import replace_line_in_text
 
 def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_value, new_value):
     param_name = None
+    data_provider_lineno = None
 
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
         new_content = content
 
-    current_line = len(new_content.splitlines())
+    current_line = len(new_content.splitlines()) + 1
 
     with open(file_path, "r", encoding="utf-8") as f:
         for line in reversed(f.readlines()):
+            current_line = current_line - 1
+
+            if current_line > lineno:
+                continue
 
             if current_line == lineno:
                 updated_line = update_value_in_function_call(
@@ -47,12 +52,17 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
 
                 if updated_line is not None:
                     new_content = replace_line_in_text(new_content, current_line, updated_line)
+                    break
 
-            current_line = current_line - 1
+            if line.strip().startswith("@pytest.mark.parametrize") and current_line < lineno:
+                data_provider_lineno = current_line
+                print(f"\nData provider lineno {data_provider_lineno}")
+                break
+
 
     if new_content == content:
         # Fix None value in the data provider
-        current_line = 1
+        current_line = 0
         data_row_index = -1
         column_index = -1
         in_data_block = False
@@ -60,8 +70,13 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
 
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f.readlines():
+                current_line = current_line + 1
 
-                if line.strip().startswith("@pytest.mark.parametrize"):
+                if current_line < data_provider_lineno:
+                    continue
+
+                if current_line == data_provider_lineno:
+                    print(f"Actual data provider lineno {current_line}")
                     data_names_map = get_data_provider_names_map(line)
                     column_index = data_names_map[param_name]
 
@@ -76,6 +91,7 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
                         if updated_line is not None:
                             new_content = replace_line_in_text(
                                 new_content, current_line, updated_line)
+                            break
                         else:
                             messagebox.askokcancel(
                                 f"Missing {arg_type} valur",
@@ -88,8 +104,6 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
                             raise RuntimeError("Record mode interrupted by user.")
 
                     data_row_index = data_row_index + 1
-
-                current_line = current_line + 1
 
     # Save to the test file:
     with open(file_path, "w", encoding="utf-8") as f:
@@ -152,9 +166,10 @@ def fix_noname_parameter_value(arg_type, page, index, old_value):
         if ("/pages/" in filename or "\\pages\\" in filename) and simple_file_name.endswith("_page.py"):
             in_stack_blok = True
             param_index = get_parameter_index_from_function_def(filename, lineno, index)
+            continue
 
         # Fix None value in the test file.
-        elif ("/tests/" in filename or "\\tests\\" in filename) and simple_file_name.startswith("test_"):
+        if ("/tests/" in filename or "\\tests\\" in filename) and simple_file_name.startswith("test_"):
 
             if param_index == -1:
                 messagebox.askokcancel(
@@ -169,8 +184,9 @@ def fix_noname_parameter_value(arg_type, page, index, old_value):
 
             return fix_value_in_file(arg_type, page, filename, lineno, code, param_index, old_value)
 
-        elif in_stack_blok:
+        if in_stack_blok:
             param_index = get_parameter_index_from_function_def(filename, lineno, param_index)
+
 
 
 def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: str):

@@ -19,13 +19,13 @@ class InventoryPage(Page):
         self.add_to_cart_button = SmartLocator(self, "xpath=//div[@class='inventory_item_description'][.//*[normalize-space(text())='#KEYWORD']]//button[@class='btn btn_primary btn_small btn_inventory ']")
         self.inventory_page_url = urljoin(config['demo_base_url'], 'inventory.html')
 
-    def set_keyword(self, keyword: str):
+    def set_keyword(self, keyword):
         self.product_name.set_keyword(keyword)
         self.product_image.set_keyword(self.product_name.get_keyword())
         self.product_price.set_keyword(self.product_name.get_keyword())
         self.add_to_cart_button.set_keyword(self.product_name.get_keyword())
 
-    def verify_page(self, product: str, button_text: str):
+    def verify_page(self, product, button_text):
         expect(self.page).to_have_url(self.inventory_page_url)
         expect(self.header).to_have_text(INVENTORY_PAGE_HEADER)
         expect(self.product_name).to_be_visible()

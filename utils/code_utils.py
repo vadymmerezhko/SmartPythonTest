@@ -136,55 +136,53 @@ def replace_variable_assignment(line: str, var_name: str, new_value: str) -> Opt
     return f"{leading_ws}{lhs} = {new_value}"
 
 
+import ast
+
 def get_parameter_index_from_function_def(filename: str, lineno: int, index: int) -> int:
     """
     Given a file and a line number, extract the argument name from a function call
     at that line and resolve it to the index in the enclosing function definition.
 
-    Supports function definitions with type hints, default values, and return annotations.
-
-    Args:
-        filename (str): Path to the Python file.
-        lineno (int): Line number of the call (1-based).
-        index (int): Argument index in the call (0-based).
-
-    Returns:
-        int: The parameter index in the function definition (excluding 'self'), or -1 if not found.
+    Works for instance methods (self), class methods (cls), static methods, and plain functions.
     """
     with open(filename, "r", encoding="utf-8") as f:
         source = f.read()
         lines = source.splitlines()
 
-    # Step 1: get the call expression from the target line
-    call_line = lines[lineno - 1].strip()
-    try:
-        expr = ast.parse(call_line, mode="eval").body
-    except SyntaxError:
-        return -1
-
+    # --- Step 1: Get the full call expression (handle multi-line)
+    call_code = ""
+    expr = None
+    for i in range(lineno - 1, len(lines)):
+        call_code += lines[i].strip() + "\n"
+        try:
+            expr = ast.parse(call_code, mode="eval").body
+            if isinstance(expr, ast.Call):
+                break
+        except SyntaxError:
+            continue
     if not isinstance(expr, ast.Call):
         return -1
 
+    # --- Step 2: Extract argument name
     if index >= len(expr.args):
         return -1
-
     arg_node = expr.args[index]
     if not isinstance(arg_node, ast.Name):
         return -1
     arg_name = arg_node.id
 
-    # Step 2: parse the whole file into an AST
+    # --- Step 3: Parse the entire file
     tree = ast.parse(source)
 
-    # Step 3: find the enclosing function definition
+    # --- Step 4: Find enclosing function definition
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
-            if node.lineno <= lineno <= getattr(node, "end_lineno", node.lineno):
-                # Collect parameter names, excluding 'self'
-                params = [arg.arg for arg in node.args.args if arg.arg != "self"]
+            start = node.lineno
+            end = getattr(node, "end_lineno", node.lineno)
+            if start <= lineno <= end:
+                params = [arg.arg for arg in node.args.args if arg.arg not in ("self", "cls")]
                 if arg_name in params:
                     return params.index(arg_name)
-
     return -1
 
 
@@ -266,5 +264,29 @@ def normalize_args(fn, *args, **kwargs):
             break
 
     return tuple(normalized_args), new_kwargs
+
+
+def get_parameter_index_from_stack(index: int = 0) -> int:
+    """
+    Return the parameter index (excluding 'self'/'cls') of the immediate caller's
+    function, or -1 if the index is out of range or no suitable frame exists.
+    """
+    # stack[0] = this function, stack[1] = immediate caller
+    stack = inspect.stack()
+    if len(stack) < 2:
+        return -1
+
+    caller = stack[1]
+    frame = caller.frame
+    arg_info = inspect.getargvalues(frame)
+    params = [a for a in arg_info.args if a not in ("self", "cls")]
+
+    # no params or out-of-range → -1
+    if index < 0 or index >= len(params):
+        return -1
+
+    # index is relative to params already (self/cls removed)
+    return index
+
 
 

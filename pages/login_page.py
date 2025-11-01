@@ -16,7 +16,7 @@ class LoginPage:
     def goto(self):
         self.page.goto(self.url)
 
-    def login(self, username: str, password: str):
+    def login(self, username, password):
         self.username_input.fill(username)
         self.password_input.fill(password)
         self.login_button.click()

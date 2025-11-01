@@ -8,7 +8,9 @@ from utils.code_utils import (get_caller_info,
                               replace_variable_assignment,
                               get_parameter_index_from_function_def,
                               get_data_provider_names_map,
-                              replace_variable_in_data_provider)
+                              replace_variable_in_data_provider,
+                              get_parameter_index_from_stack,
+                              normalize_args)
 
 
 def helper_function():
@@ -227,6 +229,101 @@ def test_parameters_with_type_annotations_and_return_type():
         os.remove(path)
 
 
+def test_parameters_without_type_annotations_and_without_self():
+    code = """
+    def login(page, username, password):
+        page.login(username, password)
+    """
+    path = create_temp_file(code)
+
+    try:
+        with open(path, "r") as f:
+            lines = f.readlines()
+
+        # Both username and password are on the same line
+        line_call = next(i + 1 for i, l in enumerate(lines) if "page.login(username, password)" in l)
+        # username -> first argument (index 0)
+        assert get_parameter_index_from_function_def(path, line_call, 0) == 1  # 'username'
+        # password -> second argument (index 1)
+        assert get_parameter_index_from_function_def(path, line_call, 1) == 2  # 'password'
+
+    finally:
+        os.remove(path)
+
+
+def test_parameters_with_type_annotations_and_with_long_call_line():
+    code = """
+    def verify_page(self, product: str, button_text: str):
+        expect(self.product_name).to_have_text(product)
+        expect(self.add_to_cart_button).to_have_text(button_text)
+    """
+    path = create_temp_file(code)
+
+    try:
+        with open(path, "r") as f:
+            lines = f.readlines()
+
+        # Find both .to_have_text(...) lines
+        line_product = next(i + 1 for i, l in enumerate(lines) if ".to_have_text(product)" in l)
+        line_button = next(i + 1 for i, l in enumerate(lines) if ".to_have_text(button_text)" in l)
+
+        # product -> first parameter (index 0)
+        assert get_parameter_index_from_function_def(path, line_product, 0) == 0  # 'product'
+
+        # button_text -> second parameter (index 1)
+        assert get_parameter_index_from_function_def(path, line_button, 0) == 1  # 'button_text'
+
+    finally:
+        os.remove(path)
+
+
+def test_parameters_with_self_and_three_parameters():
+    code = """
+    def verify_inventory_page(self, inventory_page: InventoryPage, product: str, button_name: str):
+        inventory_page.verify_page(product, button_name)
+    """
+    path = create_temp_file(code)
+
+    try:
+        with open(path, "r") as f:
+            lines = f.readlines()
+
+        # Both arguments are on the same line
+        line_call = next(i + 1 for i, l in enumerate(lines) if "inventory_page.verify_page(product, button_name)" in l)
+
+        # product -> first argument in the call (index 0)
+        assert get_parameter_index_from_function_def(path, line_call, 0) == 1  # 'product'
+
+        # button_name -> second argument in the call (index 1)
+        assert get_parameter_index_from_function_def(path, line_call, 1) == 2  # 'button_name'
+
+    finally:
+        os.remove(path)
+
+
+def test_parameters_with_type_annotations_and_with_self():
+    code = """
+        def login(self, username, password):
+            self.page.login(username, password)
+    """
+    path = create_temp_file(code)
+
+    try:
+        with open(path, "r") as f:
+            lines = f.readlines()
+
+        # The call line as written in the code snippet
+        line_call = next(i + 1 for i, l in enumerate(lines) if "self.page.login(username, password)" in l)
+
+        # username -> first argument (index 0)
+        assert get_parameter_index_from_function_def(path, line_call, 0) == 0  # 'username'
+        # password -> second argument (index 1)
+        assert get_parameter_index_from_function_def(path, line_call, 1) == 1  # 'password'
+
+    finally:
+        os.remove(path)
+
+
 def test_parameters_with_defaults():
     code = '''
     class LoginPage:
@@ -321,10 +418,6 @@ def test_preserve_comma_at_end():
     updated = replace_variable_in_data_provider(row, 0, '"changed"')
     assert updated == "     ('changed', 'pass')"
 
-import pytest
-import inspect
-from utils.code_utils import normalize_args
-
 
 # --- Fake functions to simulate Playwright Locator methods --- #
 
@@ -397,3 +490,114 @@ def test_press_with_keyword():
     assert args == ("Tab",)
     assert kwargs == {}
 
+    def test_parameters_in_static_method():
+        code = """
+        class Utils:
+            @staticmethod
+            def concat(prefix, suffix):
+                result = prefix + suffix
+                Utils.concat(prefix, suffix)
+        """
+        path = create_temp_file(code)
+
+        try:
+            with open(path, "r") as f:
+                lines = f.readlines()
+
+            # Find the call line
+            line_call = next(i + 1 for i, l in enumerate(lines) if "Utils.concat(prefix, suffix)" in l)
+
+            # prefix -> first parameter (index 0)
+            assert get_parameter_index_from_function_def(path, line_call, 0) == 0  # 'prefix'
+
+            # suffix -> second parameter (index 1)
+            assert get_parameter_index_from_function_def(path, line_call, 1) == 1  # 'suffix'
+
+        finally:
+            os.remove(path)
+
+
+def test_parameters_in_class_method():
+    code = """
+    class Inventory:
+        @classmethod
+        def update(cls, product, quantity):
+            cls.update(product, quantity)
+    """
+    path = create_temp_file(code)
+
+    try:
+        with open(path, "r") as f:
+            lines = f.readlines()
+
+        # Find the call line
+        line_call = next(i + 1 for i, l in enumerate(lines) if "cls.update(product, quantity)" in l)
+
+        # product -> first argument in the call (index 0)
+        assert get_parameter_index_from_function_def(path, line_call, 0) == 0  # 'product'
+
+        # quantity -> second argument (index 1)
+        assert get_parameter_index_from_function_def(path, line_call, 1) == 1  # 'quantity'
+
+    finally:
+        os.remove(path)
+
+
+# --- Basic function --- #
+def test_simple_function():
+    def foo(x, y, z):
+        return get_parameter_index_from_stack(1)
+
+    assert foo(10, 20, 30) == 1
+
+
+# --- Class method with self --- #
+def test_class_instance_method():
+    class A:
+        def bar(self, a, b):
+            return get_parameter_index_from_stack(0), get_parameter_index_from_stack(1)
+
+    obj = A()
+    first, second = obj.bar("alpha", "beta")
+    assert first == 0
+    assert second == 1
+
+
+# --- Class method with cls --- #
+def test_class_classmethod():
+    class B:
+        @classmethod
+        def baz(cls, x, y):
+            return get_parameter_index_from_stack(1)
+
+    assert B.baz("first", "second") == 1
+
+
+# --- Static method --- #
+def test_static_method():
+    class C:
+        @staticmethod
+        def combine(prefix, suffix):
+            return get_parameter_index_from_stack(0), get_parameter_index_from_stack(1)
+
+    first, second = C.combine("pre", "post")
+    assert first == 0
+    assert second == 1
+
+
+# --- Nested call chain --- #
+def test_nested_call_chain():
+    def inner(a, b):
+        return get_parameter_index_from_stack(1)
+
+    def outer(x, y):
+        return inner(x, y)
+
+    assert outer(5, 10) == 1
+
+
+# --- Invalid index (out of range) --- #
+def test_invalid_index():
+    def foo(x):
+        return get_parameter_index_from_stack(5)  # too large
+    assert foo(42) == -1
