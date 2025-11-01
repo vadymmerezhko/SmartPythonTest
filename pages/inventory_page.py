@@ -1,4 +1,5 @@
 from playwright.sync_api import Page
+import re
 from wrappers.smart_locator import SmartLocator
 from wrappers.smart_expect import expect
 from urllib.parse import urljoin
@@ -31,5 +32,5 @@ class InventoryPage(Page):
         # TODO: Fix
         # expect(self.product_name).to_contain_text(product)
         expect(self.product_image).to_be_visible()
-        expect(self.product_price).to_be_visible()
+        expect(self.product_price).to_have_text(re.compile(r"^\$\s*\d", re.MULTILINE))
         expect(self.add_to_cart_button).to_have_text(button_text)

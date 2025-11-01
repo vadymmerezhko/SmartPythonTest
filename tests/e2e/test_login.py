@@ -4,7 +4,7 @@ from pages.inventory_page import InventoryPage
 
 
 @pytest.mark.parametrize("username,password,product", [
-    (None, 'secret_sauce', 'Sauce Labs Backpack'),
+    ('standard_user', 'secret_sauce', 'Sauce Labs Backpack'),
     ('visual_user', 'secret_sauce', 'Sauce Labs Bolt T-Shirt'),
     ('performance_glitch_user', 'secret_sauce', 'Sauce Labs Bike Light'),
 ])

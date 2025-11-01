@@ -61,6 +61,16 @@ def test_update_none_argument_to_string_with_indent():
     result = update_value_in_function_call(result, 1, "None", "password")
     assert result == "    login_page.login(username, password)    "
 
+def test_update_expected_string_argument_to_string():
+    line = "login_page.login('admin', password)"
+    result = update_value_in_function_call(line, 0, "'admin'", "'user'")
+    assert result == "login_page.login('user', password)"
+
+def test_update_expected_string_argument_to_string_different_quotes():
+    line = 'login_page.login("admin", password)'
+    result = update_value_in_function_call(line, 0, "'admin'", "'user'")
+    assert result == "login_page.login('user', password)"
+
 def test_update_with_wrong_old_value():
     line = "login_page.login(username, password)"
     result = update_value_in_function_call(line, 0, "None","'admin'")

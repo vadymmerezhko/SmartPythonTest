@@ -1,7 +1,7 @@
 import inspect
 import re
 from common.constnts import KEYWORD_PLACEHOLDER
-from helpers.code_update_helper import (fix_noname_parameter_none_value,
+from helpers.record_mode_helper import (fix_noname_parameter_value,
                                         handle_missing_locator,
                                         update_source_file)
 from utils.code_utils import normalize_args
@@ -144,7 +144,7 @@ class SmartLocator:
                     args[i] = FIXED_VALUES[self.cache_key]
 
                 else:
-                    new_value = fix_noname_parameter_none_value(PARAMETER_TYPE, self.page, i)
+                    new_value = fix_noname_parameter_value(PARAMETER_TYPE, self.page, i, "None")
                     FIXED_VALUES[self.cache_key] = new_value
                     args[i] = new_value
 
@@ -157,5 +157,5 @@ class SmartLocator:
                 self.keyword = FIXED_KEYWORDS[self.cache_key]
             else :
                 # Fix keyword None or empty value in record mode
-                self.keyword = fix_noname_parameter_none_value(KEYWORD_TYPE, self.page, 0)
+                self.keyword = fix_noname_parameter_value(KEYWORD_TYPE, self.page, 0)
                 FIXED_KEYWORDS[self.cache_key] = self.keyword
