@@ -95,7 +95,6 @@ def pytest_runtest_call(item):
     # Detect transition to a new test function
     if _last_test_function and _last_test_function != current_func:
         print(f"[DEBUG] Clearing FIXED_* caches before new test: {current_func}")
-        FIXED_SELECTORS.clear()
         FIXED_VALUES.clear()
         FIXED_KEYWORDS.clear()
         FIXED_EXPECTS.clear()
