@@ -154,22 +154,17 @@ def fix_value_in_file(arg_type, page, file_path, lineno, code, param_index, old_
     return new_value
 
 def fix_noname_parameter_value(arg_type, page, index, old_value):
-    param_index = -1
-    in_stack_blok = False
+    param_index = index
+    in_stack_block = False
 
-    for i in range(3, 10):
+    # Start from the 4th level where values is used by Playwright method
+    for i in range(4, 10):
         # Fix literal constant values in the test file
         filename, lineno, code = get_caller_info(i)
-        simple_file_name = os.path.basename(filename)
-
-        # Get parameter id from function definition in the page object file.
-        if ("/pages/" in filename or "\\pages\\" in filename) and simple_file_name.endswith("_page.py"):
-            in_stack_blok = True
-            param_index = get_parameter_index_from_function_def(filename, lineno, index)
-            continue
+        next_filename = get_caller_info(i + 1)[0]
 
         # Fix None value in the test file.
-        if ("/tests/" in filename or "\\tests\\" in filename) and simple_file_name.startswith("test_"):
+        if  next_filename.endswith("python.py"):
 
             if param_index == -1:
                 messagebox.askokcancel(
@@ -184,9 +179,8 @@ def fix_noname_parameter_value(arg_type, page, index, old_value):
 
             return fix_value_in_file(arg_type, page, filename, lineno, code, param_index, old_value)
 
-        if in_stack_blok:
-            param_index = get_parameter_index_from_function_def(filename, lineno, param_index)
-
+        # Get parameter id from function definition in the page object file.
+        param_index = get_parameter_index_from_function_def(filename, lineno, param_index)
 
 
 def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: str):
