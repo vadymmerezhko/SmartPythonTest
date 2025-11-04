@@ -123,13 +123,13 @@ def fix_value_in_file(arg_type, page, file_path, lineno, code, param_index, old_
             f"Enter correct {arg_type} value and click OK.\n"
             f"Or click OK, select {arg_type} value and press Ctrl.\n"
             "Or click Cancel to terminate record mode.",
-            initialvalue="Some value"
+            initialvalue=old_value
         )
 
-        if not new_value:
+        if new_value is None:
             raise RuntimeError("Record mode interrupted by user.")
 
-        if new_value == "Some value":
+        if new_value == old_value:
             selected_locator = select_element_on_page(page)
             new_value = get_element_value_or_text(selected_locator)
 
@@ -189,11 +189,8 @@ def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: s
 
     while True:
 
-        if selector.strip() == "":
-           selector = "Element locator"
-
         new_selector = simpledialog.askstring(
-            "Fix failed element selector",
+            "Fix failed selector",
             f"Element name: '{cache_key}'\n"
             f"Keyword: {keyword}\n"
             f"Failed selector: '{selector}'\n"
@@ -203,7 +200,7 @@ def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: s
             initialvalue=selector
         )
 
-        if not new_selector:
+        if new_selector is None:
             raise RuntimeError("Record mode interrupted by user.")
 
         if new_selector == selector:

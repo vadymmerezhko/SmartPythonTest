@@ -6,7 +6,6 @@ from typing import Optional
 import re
 import utils.keyboard_utils as ku
 from playwright.sync_api import Locator
-from tkinter import simpledialog
 
 
 from playwright.sync_api import Page
@@ -331,9 +330,6 @@ def get_complex_css_selector(locator: Locator) -> str | None:
 
     return None
 
-
-from typing import Optional
-from playwright.sync_api import Locator
 
 def get_not_unique_complex_css_selector(locator: Locator) -> Optional[str]:
     """

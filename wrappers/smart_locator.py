@@ -7,7 +7,7 @@ from helpers.record_mode_helper import (fix_noname_parameter_value,
 from utils.code_utils import normalize_args
 
 
-PARAMETER_TYPE = "parameter"
+PARAMETER_TYPE = "input"
 KEYWORD_TYPE = "keyword"
 
 # Global cache for runtime locator fixes
@@ -27,15 +27,12 @@ class SmartLocator:
     - File patching: the page object source file is updated automatically.
     """
 
-    def __init__(self, owner, selector: str):
+    def __init__(self, owner, selector):
         self.page = owner.page
         self.config = owner.config
         self.owner = owner
-        self.selector = selector
+        self.selector = str(selector)
         self.keyword = None
-
-        if not self.selector:
-            self.selector = ""
 
         # Detect field name and source file
         self.field_name, self.source_file = self._get_field_info()
@@ -106,10 +103,13 @@ class SmartLocator:
                     return target(*args, **kwargs)
                 except Exception as e:
                     error_message = str(e)
+                    print(f"ERROR: {error_message}")
 
                     if self.config.get("record_mode"):
 
-                        if "No node found" in error_message or "Timeout" in error_message:
+                        if ("No node found" in error_message or
+                                "Timeout" in error_message or
+                                "Unexpected token" in error_message):
                             new_locator = self.fix_locator()
                             return getattr(new_locator, item)(*args, **kwargs)
                     raise
@@ -125,7 +125,7 @@ class SmartLocator:
 
     def fix_locator(self):
         new_selector = handle_missing_locator(
-            self.page, self.cache_key, self.selector, self.keyword)
+            self.page, self.cache_key, str(self.selector), self.keyword)
         update_source_file(
             self.source_file, self.field_name, self.cache_key, self.keyword, new_selector)
         new_locator = self.page.locator(new_selector)
@@ -157,5 +157,6 @@ class SmartLocator:
                 self.keyword = FIXED_KEYWORDS[self.cache_key]
             else :
                 # Fix keyword None or empty value in record mode
-                self.keyword = fix_noname_parameter_value(KEYWORD_TYPE, self.page, 0)
+                self.keyword = fix_noname_parameter_value(
+                    KEYWORD_TYPE, self.page, 0, str(self.keyword))
                 FIXED_KEYWORDS[self.cache_key] = self.keyword
