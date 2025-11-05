@@ -56,7 +56,7 @@ class SmartLocator:
         """
         self.keyword = keyword
         # Replace locator keyword placeholder with keyword value
-        if keyword:
+        if self.selector and keyword:
             self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, keyword)
             FIXED_SELECTORS[self.cache_key] = self.selector
 
@@ -117,7 +117,7 @@ class SmartLocator:
                         if ("No node found" in error_message or
                                 "Timeout" in error_message or
                                 "Unexpected token" in error_message):
-                            new_locator = self.fix_selctor()
+                            new_locator = self.fix_locator()
                             return getattr(new_locator, item)(*args, **kwargs)
                     raise
             return wrapper
@@ -130,16 +130,16 @@ class SmartLocator:
 
     __repr__ = __str__
 
-    def fix_selctor(self):
+    def fix_locator(self):
         new_selector = handle_missing_locator(
             self.page, self.cache_key, str(self.selector), self.keyword)
         update_source_file(
             self.source_file, self.field_name, self.cache_key, self.keyword, new_selector)
-        new_selector = self.page.locator(new_selector)
+        new_locator = self.page.locator(new_selector)
         # Update this instance + cache
         FIXED_SELECTORS[self.cache_key] = new_selector
 
-        return new_selector
+        return new_locator
 
     def validate_arguments(self, args, kwargs):
         args = list(args)
@@ -153,8 +153,8 @@ class SmartLocator:
                     args[i] = fixed_value
 
                 else:
-                    new_value = fix_noname_parameter_value(PARAMETER_TYPE, self.page, i,
-                                                           "None", self.placeholder_manager)
+                    new_value = fix_noname_parameter_value(
+                        PARAMETER_TYPE, self.page, i,"None", self.placeholder_manager)
                     FIXED_VALUES[self.cache_key] = new_value
                     args[i] = new_value
 
@@ -171,5 +171,5 @@ class SmartLocator:
             else :
                 # Fix keyword None or empty value in record mode
                 self.keyword = fix_noname_parameter_value(
-                    KEYWORD_TYPE, self.page, 0, str(self.keyword), self.placeholder_manager)
+                    KEYWORD_TYPE, self.page,0, str(self.keyword), self.placeholder_manager)
                 FIXED_KEYWORDS[self.cache_key] = self.keyword

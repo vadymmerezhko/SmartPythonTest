@@ -34,10 +34,8 @@ class PlaceholderManager:
                     # or from config parameter
                     # or from command line parameter
                     value = get_effective_config_value(key, self.config)
-                    print(f"\nPlaceholder: {simple_placeholder} -> {value}")
                     self.placeholders_map[key] = value
 
-                print(f"\nPlaceholder: {simple_placeholder} -> {value}")
                 text = text.replace(simple_placeholder, value)
         return text
 
@@ -55,7 +53,6 @@ class PlaceholderManager:
                 value = get_effective_config_value(key, self.config)
                 self.placeholders_map[key] = value
 
-            print(f"\nPlaceholder: {simple_placeholder} -> {value}")
             text = text.replace(value, simple_placeholder)
         return text
 

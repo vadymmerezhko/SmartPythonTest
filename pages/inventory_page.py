@@ -25,6 +25,9 @@ class InventoryPage(Page):
         self.product_price.set_keyword(self.product_name.get_keyword())
         self.add_to_cart_button.set_keyword(self.product_name.get_keyword())
 
+    def add_placeholder(self, name: str):
+        self.add_to_cart_button.add_placeholder(name)
+
     def verify_page(self, product, button_text):
         expect(self.page).to_have_url(self.inventory_page_url)
         expect(self.header).to_have_text(INVENTORY_PAGE_HEADER)

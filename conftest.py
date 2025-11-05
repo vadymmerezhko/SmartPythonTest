@@ -48,6 +48,7 @@ def pytest_addoption(parser):
     )
     parser.addoption(
         "--username",
+        "--test_placeholder",
         action="store",
         help="Custom username override",
     )

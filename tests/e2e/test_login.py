@@ -4,7 +4,7 @@ from pages.inventory_page import InventoryPage
 from services.test_service import TestService
 
 @pytest.mark.parametrize("username,password,product", [
-    ('standard_user', 'secret_sauce', 'Add to cart'),
+    ('standard_user', 'secret_sauce', 'Sauce Labs Backpack'),
     ('visual_user', 'secret_sauce', 'Sauce Labs Bolt T-Shirt'),
     ('performance_glitch_user', 'secret_sauce', 'Sauce Labs Bike Light'),
 ])
@@ -16,7 +16,7 @@ def test_login_with_multiple_users(page, config, username, password, product):
 
     inventory_page = InventoryPage(page, config)
     inventory_page.set_keyword(product)
-    inventory_page.verify_page(product, 'Add to cart AAA')
+    inventory_page.verify_page(product, 'Add to cart')
 
 # Test with test service
 @pytest.mark.parametrize("username,password,product", [
@@ -29,3 +29,14 @@ def test_login_with_multiple_users_and_test_service(page, config, username, pass
     test_service = TestService()
     test_service.login(page, config, username, password)
     test_service.verify_inventory_page(page, config, product, 'Add to cart')
+
+def test_login_with_placeholder(page, config):
+    login_page = LoginPage(page, config)
+    login_page.goto()
+    login_page.login('standard_user', 'secret_sauce')
+
+    product = 'Sauce Labs Bike Light'
+    inventory_page = InventoryPage(page, config)
+    inventory_page.set_keyword(product)
+    inventory_page.add_placeholder('Test_placeholder')
+    inventory_page.verify_page(product, '#TEST_PLACEHOLDER#')

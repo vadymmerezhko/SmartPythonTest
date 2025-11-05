@@ -3,5 +3,6 @@
   "browser": "chromium",
   "headless": true,
   "record_mode": false,
-  "timeout": 10000
+  "timeout": 10000,
+  "test_placeholder": "Add to cart"
 }

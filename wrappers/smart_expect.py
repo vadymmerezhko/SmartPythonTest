@@ -49,7 +49,7 @@ class SmartExpectProxy:
                         target = getattr(self._inner, item)
                         return target(*args, **kwargs)
 
-                    except AssertionError as e:
+                    except Exception as e:
                         error_message = str(e)
 
                         if self._smart_locator.config.get("record_mode"):
@@ -59,7 +59,7 @@ class SmartExpectProxy:
                                 count = 0
 
                             if count == 0:
-                                fixed_locator = self._smart_locator.fix_selctor()
+                                fixed_locator = self._smart_locator.fix_locator()
                                 self._inner = pw_expect(fixed_locator)
                                 target = getattr(self._inner, item)
                                 # Retry with fixed locator
@@ -94,7 +94,8 @@ class SmartExpectProxy:
                 args[i] = FIXED_EXPECTS[self.cache_key]
             else:
                 if arg is None:
-                    new_value = fix_noname_parameter_value(EXPECTED_TYPE, self.page, 0, "None")
+                    new_value = fix_noname_parameter_value(
+                        EXPECTED_TYPE,self.page,0,"None",self.placeholder_manager)
                     FIXED_EXPECTS[self.cache_key] = new_value
                     args[i] = new_value
 
