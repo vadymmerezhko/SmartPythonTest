@@ -15,6 +15,7 @@ class SmartExpectProxy:
             self.page = actual.page
             self._smart_locator = actual
             self.cache_key = self._smart_locator.cache_key
+            self.placeholder_manager = self._smart_locator.placeholder_manager
             unwrapped = actual.locator
         elif isinstance(actual, Locator):
             self.page = actual.page
@@ -58,7 +59,7 @@ class SmartExpectProxy:
                                 count = 0
 
                             if count == 0:
-                                fixed_locator = self._smart_locator.fix_locator()
+                                fixed_locator = self._smart_locator.fix_selctor()
                                 self._inner = pw_expect(fixed_locator)
                                 target = getattr(self._inner, item)
                                 # Retry with fixed locator
@@ -69,7 +70,13 @@ class SmartExpectProxy:
                                 # Fix expected value
                                 if args:
                                     new_value = fix_noname_parameter_value(
-                                        EXPECTED_TYPE, self.page, 0, f'"{args[0]}"')
+                                        EXPECTED_TYPE, self.page, 0, f'"{args[0]}"',
+                                        self.placeholder_manager)
+
+                                    if isinstance(new_value, str):
+                                        new_value = (self.placeholder_manager.
+                                                     replace_placeholders_with_values(new_value))
+
                                     FIXED_EXPECTS[self.cache_key] = new_value
                                     args = args[:0] + (new_value,) + args[1:]
                                     # Retry with fixed expected value
@@ -91,7 +98,11 @@ class SmartExpectProxy:
                     FIXED_EXPECTS[self.cache_key] = new_value
                     args[i] = new_value
 
+            if isinstance(args[i], str):
+                args[i] = self.placeholder_manager.replace_placeholders_with_values(args[i])
+
         return tuple(args), kwargs
+
 
     def __dir__(self):
         return dir(self._inner)

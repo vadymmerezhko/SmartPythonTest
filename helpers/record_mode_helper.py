@@ -6,6 +6,8 @@ import tkinter as tk
 from common.constnts import KEYWORD_PLACEHOLDER
 from playwright.sync_api import Page
 from tkinter import messagebox, simpledialog
+
+from helpers.placeholder_manager import PlaceholderManager
 from utils.web_utils import (select_element_on_page,
                              get_element_value_or_text,
                              get_unique_element_selector)
@@ -36,6 +38,7 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
                 continue
 
             if current_line == lineno:
+                print(f"fOld value: {old_value}")
                 updated_line = update_value_in_function_call(
                     line, param_index, old_value, f"'{new_value}'")
 
@@ -109,7 +112,8 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-def fix_value_in_file(arg_type, page, file_path, lineno, code, param_index, old_value):
+def fix_value_in_file(arg_type, page, file_path, lineno, code,
+                      param_index, old_value, placeholder_manager: PlaceholderManager):
 
     while True:
         file_name = os.path.basename(file_path)
@@ -150,12 +154,13 @@ def fix_value_in_file(arg_type, page, file_path, lineno, code, param_index, old_
         else:
             break
 
+    new_value = placeholder_manager.replace_values_with_placeholders(new_value)
     update_value_in_source_file(arg_type, file_path, lineno, param_index, old_value, new_value)
     return new_value
 
-def fix_noname_parameter_value(arg_type, page, index, old_value):
+def fix_noname_parameter_value(arg_type, page, index, old_value,
+                               placeholder_manager: PlaceholderManager):
     param_index = index
-    in_stack_block = False
 
     # Start from the 4th level where values is used by Playwright method
     for i in range(4, 10):
@@ -177,7 +182,9 @@ def fix_noname_parameter_value(arg_type, page, index, old_value):
                 )
                 raise RuntimeError("Record mode interrupted by user.")
 
-            return fix_value_in_file(arg_type, page, filename, lineno, code, param_index, old_value)
+
+            return fix_value_in_file(arg_type, page, filename, lineno,
+                                     code, param_index, old_value, placeholder_manager)
 
         # Get parameter id from function definition in the page object file.
         param_index = get_parameter_index_from_function_def(filename, lineno, param_index)

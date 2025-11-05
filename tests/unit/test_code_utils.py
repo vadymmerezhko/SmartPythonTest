@@ -2,6 +2,8 @@ import pytest
 import tempfile
 import textwrap
 import os
+import sys
+import types
 from utils.code_utils import (get_caller_info,
                               get_function_parameters_index_map,
                               update_value_in_function_call,
@@ -10,7 +12,8 @@ from utils.code_utils import (get_caller_info,
                               get_data_provider_names_map,
                               replace_variable_in_data_provider,
                               get_parameter_index_from_stack,
-                              normalize_args)
+                              normalize_args,
+                              get_effective_config_value)
 
 
 def helper_function():
@@ -601,3 +604,84 @@ def test_invalid_index():
     def foo(x):
         return get_parameter_index_from_stack(5)  # too large
     assert foo(42) == -1
+
+
+@pytest.fixture(autouse=True)
+def restore_environment_and_argv():
+    """Ensure environment and sys.argv are reset between tests."""
+    old_environ = os.environ.copy()
+    old_argv = sys.argv.copy()
+    yield
+    os.environ.clear()
+    os.environ.update(old_environ)
+    sys.argv = old_argv
+
+
+def test_returns_cli_value_if_present(monkeypatch):
+    sys.argv = ["pytest", "--browser=chrome"]
+    config = {"browser": "firefox"}
+    monkeypatch.setenv("BROWSER", "edge")
+    result = get_effective_config_value("browser", config)
+    assert result == "chrome"
+
+
+def test_cli_overrides_config_and_env(monkeypatch):
+    sys.argv = ["pytest", "--browser=edge"]
+    config = {"browser": "firefox"}
+    monkeypatch.setenv("BROWSER", "chrome")
+    result = get_effective_config_value("browser", config)
+    assert result == "edge"
+
+
+def test_config_overrides_env(monkeypatch):
+    sys.argv = ["pytest"]
+    config = {"browser": "chromium"}
+    monkeypatch.setenv("BROWSER", "firefox")
+    result = get_effective_config_value("browser", config)
+    assert result == "chromium"
+
+
+def test_returns_env_variable_if_only_env_present(monkeypatch):
+    sys.argv = ["pytest"]
+    config = {}
+    monkeypatch.setenv("BROWSER", "firefox")
+    result = get_effective_config_value("browser", config)
+    assert result == "firefox"
+
+
+def test_returns_config_value_if_only_config_present():
+    sys.argv = ["pytest"]
+    config = {"browser": "chromium"}
+    result = get_effective_config_value("browser", config)
+    assert result == "chromium"
+
+
+def test_case_insensitive_lookup(monkeypatch):
+    sys.argv = ["pytest", "--BROWSER=edge"]
+    config = {"Browser": "chromium"}
+    monkeypatch.setenv("browser", "firefox")
+    result = get_effective_config_value("bRoWsEr", config)
+    assert result == "edge"
+
+
+def test_returns_none_if_not_found(monkeypatch):
+    sys.argv = ["pytest"]
+    monkeypatch.delenv("BROWSER", raising=False)
+    result = get_effective_config_value("browser", {})
+    assert result is None
+
+
+def test_ignores_non_matching_cli(monkeypatch):
+    sys.argv = ["pytest", "--timeout=30"]
+    monkeypatch.setenv("BROWSER", "firefox")
+    config = {"browser": "chromium"}
+    result = get_effective_config_value("browser", config)
+    assert result == "chromium"
+
+
+def test_trims_cli_value(monkeypatch):
+    sys.argv = ["pytest", "--browser= chrome "]
+    config = {}
+    result = get_effective_config_value("browser", config)
+    assert result == "chrome"
+

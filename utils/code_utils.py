@@ -1,6 +1,7 @@
 import inspect
-import ast
+import os
 import re
+import sys
 from typing import Optional
 
 
@@ -289,4 +290,37 @@ def get_parameter_index_from_stack(index: int = 0) -> int:
     return index
 
 
+def get_effective_config_value(name: str, config: dict) -> str | None:
+    """
+    Returns the effective configuration value for a given name, following priority:
+        1. Command-line parameter (--name=value)
+        2. Config file value (case-insensitive)
+        3. System environment variable (case-insensitive)
 
+    Args:
+        name (str): Variable name (case-insensitive, e.g. "BROWSER")
+        config (dict): Configuration dictionary loaded from config.json
+
+    Returns:
+        str | None: Effective value or None if not found
+    """
+    name_lower = name.lower()
+
+    # 1️ Command-line via raw sys.argv (--name=value)
+    for arg in sys.argv:
+        if arg.startswith("--") and "=" in arg:
+            arg_name, arg_val = arg[2:].split("=", 1)
+            if arg_name.lower() == name_lower:
+                return arg_val.strip()
+
+    # 2️ Config file
+    for key, value in config.items():
+        if key.lower() == name_lower:
+            return str(value)
+
+    # 3️ Environment variable
+    for key, value in os.environ.items():
+        if key.lower() == name_lower:
+            return str(value)
+
+    return None
