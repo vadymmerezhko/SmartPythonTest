@@ -13,6 +13,9 @@ class LoginPage:
         self.password_input = SmartLocator(self, "#password")
         self.login_button = SmartLocator(self, "#login-button")
 
+    def add_placeholder(self, name, value):
+        self.password_input.add_placeholder(name, value)
+
     def goto(self):
         self.page.goto(self.url)
 
