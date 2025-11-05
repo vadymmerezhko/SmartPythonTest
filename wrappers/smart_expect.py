@@ -48,8 +48,9 @@ class SmartExpectProxy:
                         target = getattr(self._inner, item)
                         return target(*args, **kwargs)
 
-                    except AssertionError as e:
+                    except Exception as e:
                         error_message = str(e)
+                        print(f"\nERROR: {error_message}")
 
                         if self._smart_locator.config.get("record_mode"):
                             try:
@@ -69,7 +70,7 @@ class SmartExpectProxy:
                                 # Fix expected value
                                 if args:
                                     new_value = fix_noname_parameter_value(
-                                        EXPECTED_TYPE, self.page, 0, f'"{args[0]}"')
+                                        EXPECTED_TYPE, self.page, 0, str(args[0]))
                                     FIXED_EXPECTS[self.cache_key] = new_value
                                     args = args[:0] + (new_value,) + args[1:]
                                     # Retry with fixed expected value
