@@ -38,7 +38,10 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
                 continue
 
             if current_line == lineno:
-                print(f"fOld value: {old_value}")
+
+                if old_value != "None":
+                    old_value = f"'{old_value}'"
+
                 updated_line = update_value_in_function_call(
                     line, param_index, old_value, f"'{new_value}'")
 
@@ -59,7 +62,6 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
 
             if line.strip().startswith("@pytest.mark.parametrize") and current_line < lineno:
                 data_provider_lineno = current_line
-                print(f"\nData provider lineno {data_provider_lineno}")
                 break
 
 
@@ -79,7 +81,6 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
                     continue
 
                 if current_line == data_provider_lineno:
-                    print(f"Actual data provider lineno {current_line}")
                     data_names_map = get_data_provider_names_map(line)
                     column_index = data_names_map[param_name]
 
@@ -112,8 +113,7 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-def fix_value_in_file(arg_type, page, file_path, lineno, code,
-                      param_index, old_value, placeholder_manager: PlaceholderManager):
+def fix_value_in_file(arg_type, page, file_path, lineno, code, param_index, old_value):
 
     while True:
         file_name = os.path.basename(file_path)
@@ -154,19 +154,24 @@ def fix_value_in_file(arg_type, page, file_path, lineno, code,
         else:
             break
 
-    new_value = placeholder_manager.replace_values_with_placeholders(new_value)
     update_value_in_source_file(arg_type, file_path, lineno, param_index, old_value, new_value)
     return new_value
 
-def fix_noname_parameter_value(arg_type, page, index, old_value,
-                               placeholder_manager: PlaceholderManager):
+def fix_noname_parameter_value(arg_type, page, index, old_value):
     param_index = index
+    in_stack_block = False
 
     # Start from the 4th level where values is used by Playwright method
-    for i in range(4, 10):
+    for i in range(3, 10):
         # Fix literal constant values in the test file
         filename, lineno, code = get_caller_info(i)
         next_filename = get_caller_info(i + 1)[0]
+
+        if "/pages/" in filename or "\\pages\\" in filename:
+            # Get parameter id from function definition in the page object file.
+            param_index = get_parameter_index_from_function_def(filename, lineno, param_index)
+            in_stack_block = True
+            continue
 
         # Fix None value in the test file.
         if  next_filename.endswith("python.py"):
@@ -182,12 +187,11 @@ def fix_noname_parameter_value(arg_type, page, index, old_value,
                 )
                 raise RuntimeError("Record mode interrupted by user.")
 
+            return fix_value_in_file(arg_type, page, filename, lineno, code, param_index, old_value)
 
-            return fix_value_in_file(arg_type, page, filename, lineno,
-                                     code, param_index, old_value, placeholder_manager)
-
-        # Get parameter id from function definition in the page object file.
-        param_index = get_parameter_index_from_function_def(filename, lineno, param_index)
+        if in_stack_block:
+            # Get parameter id from function definition in the page object file.
+            param_index = get_parameter_index_from_function_def(filename, lineno, param_index)
 
 
 def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: str):

@@ -70,7 +70,7 @@ class SmartExpectProxy:
                                 # Fix expected value
                                 if args:
                                     new_value = fix_noname_parameter_value(
-                                        EXPECTED_TYPE, self.page, 0, f'"{args[0]}"',
+                                        EXPECTED_TYPE, self.page, 0, str(args[0]),
                                         self.placeholder_manager)
 
                                     if isinstance(new_value, str):
@@ -102,7 +102,6 @@ class SmartExpectProxy:
                 args[i] = self.placeholder_manager.replace_placeholders_with_values(args[i])
 
         return tuple(args), kwargs
-
 
     def __dir__(self):
         return dir(self._inner)
