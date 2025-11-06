@@ -42,9 +42,8 @@ class SmartExpectProxy:
                 if self._smart_locator:
 
                     try:
-                        if self._smart_locator.config.get("record_mode"):
-                            args, kwargs = normalize_args(target, *args, **kwargs)
-                            args, kwargs = self.validate_arguments(args, kwargs)
+                        args, kwargs = normalize_args(target, *args, **kwargs)
+                        args, kwargs = self.validate_arguments(args, kwargs)
 
                         target = getattr(self._inner, item)
                         return target(*args, **kwargs)
@@ -90,14 +89,16 @@ class SmartExpectProxy:
 
         for i, arg in enumerate(args):
 
-            if self.cache_key in FIXED_EXPECTS:
-                args[i] = FIXED_EXPECTS[self.cache_key]
-            else:
-                if arg is None:
-                    new_value = fix_noname_parameter_value(
-                        EXPECTED_TYPE,self.page,0,"None",self.placeholder_manager)
-                    FIXED_EXPECTS[self.cache_key] = new_value
-                    args[i] = new_value
+            if self._smart_locator.config.get("record_mode"):
+
+                if self.cache_key in FIXED_EXPECTS:
+                    args[i] = FIXED_EXPECTS[self.cache_key]
+                else:
+                    if arg is None:
+                        new_value = fix_noname_parameter_value(
+                            EXPECTED_TYPE,self.page,0,"None",self.placeholder_manager)
+                        FIXED_EXPECTS[self.cache_key] = new_value
+                        args[i] = new_value
 
             if isinstance(args[i], str):
                 args[i] = self.placeholder_manager.replace_placeholders_with_values(args[i])

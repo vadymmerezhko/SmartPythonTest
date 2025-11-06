@@ -101,11 +101,10 @@ class SmartLocator:
         if callable(target):
             def wrapper(*args, **kwargs):
 
-                if self.config.get("record_mode"):
-                    # Normalize so all kwargs become positional
-                    args, kwargs = normalize_args(target, *args, **kwargs)
-                    # Validate None values and fix them if any
-                    args, kwargs = self.validate_arguments(args, kwargs)
+                # Normalize so all kwargs become positional
+                args, kwargs = normalize_args(target, *args, **kwargs)
+                # Validate None values and fix them if any
+                args, kwargs = self.validate_arguments(args, kwargs)
 
                 try:
                     return target(*args, **kwargs)
@@ -146,17 +145,18 @@ class SmartLocator:
 
         for i, arg in enumerate(args):
 
-            if arg is None:
+            if self.config.get("record_mode"):
 
-                if self.cache_key in FIXED_VALUES:
-                    fixed_value = FIXED_VALUES[self.cache_key]
-                    args[i] = fixed_value
+                if arg is None:
 
-                else:
-                    new_value = fix_noname_parameter_value(
-                        PARAMETER_TYPE, self.page, i,"None", self.placeholder_manager)
-                    FIXED_VALUES[self.cache_key] = new_value
-                    args[i] = new_value
+                    if self.cache_key in FIXED_VALUES:
+                        fixed_value = FIXED_VALUES[self.cache_key]
+                        args[i] = fixed_value
+                    else:
+                        new_value = fix_noname_parameter_value(
+                            PARAMETER_TYPE, self.page, i,"None", self.placeholder_manager)
+                        FIXED_VALUES[self.cache_key] = new_value
+                        args[i] = new_value
 
             if isinstance(args[i], str):
                 args[i] = self.placeholder_manager.replace_placeholders_with_values(args[i])
