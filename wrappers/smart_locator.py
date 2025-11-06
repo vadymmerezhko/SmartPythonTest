@@ -1,5 +1,8 @@
 import inspect
 import re
+
+from playwright.sync_api import Locator
+
 from common.constnts import KEYWORD_PLACEHOLDER
 from helpers.placeholder_manager import PlaceholderManager
 from helpers.record_mode_helper import (fix_noname_parameter_value,
@@ -63,7 +66,7 @@ class SmartLocator:
         self.validate_keyword_value()
 
 
-    def get_keyword(self):
+    def get_keyword(self) -> str | None:
         """
         Gets dynamic data keyword value.
         """
@@ -129,7 +132,7 @@ class SmartLocator:
 
     __repr__ = __str__
 
-    def fix_locator(self):
+    def fix_locator(self) -> Locator:
         new_selector = handle_missing_locator(
             self.page, self.cache_key, str(self.selector), self.keyword)
         update_source_file(
@@ -140,7 +143,7 @@ class SmartLocator:
 
         return new_locator
 
-    def validate_arguments(self, args, kwargs):
+    def validate_arguments(self, args, kwargs) -> tuple:
         args = list(args)
 
         for i, arg in enumerate(args):
@@ -150,13 +153,13 @@ class SmartLocator:
                 if arg is None:
 
                     if self.cache_key in FIXED_VALUES:
-                        fixed_value = FIXED_VALUES[self.cache_key]
+                        fixed_value = FIXED_VALUES[self.cache_key][1]
                         args[i] = fixed_value
                     else:
-                        new_value = fix_noname_parameter_value(
+                        update = fix_noname_parameter_value(
                             PARAMETER_TYPE, self.page, i,"None", self.placeholder_manager)
-                        FIXED_VALUES[self.cache_key] = new_value
-                        args[i] = new_value
+                        FIXED_VALUES[self.cache_key] = update
+                        args[i] = update[1]
 
             if isinstance(args[i], str):
                 args[i] = self.placeholder_manager.replace_placeholders_with_values(args[i])
@@ -167,9 +170,10 @@ class SmartLocator:
 
         if not self.keyword:
             if self.cache_key in FIXED_KEYWORDS:
-                self.keyword = FIXED_KEYWORDS[self.cache_key]
+                self.keyword = FIXED_KEYWORDS[self.cache_key][1]
             else :
                 # Fix keyword None or empty value in record mode
-                self.keyword = fix_noname_parameter_value(
+                update = fix_noname_parameter_value(
                     KEYWORD_TYPE, self.page,0, str(self.keyword), self.placeholder_manager)
-                FIXED_KEYWORDS[self.cache_key] = self.keyword
+                FIXED_KEYWORDS[self.cache_key] = update
+                self.keyword = update[1]

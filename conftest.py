@@ -1,6 +1,8 @@
 import json
 import pytest
+from enums.update_type import UpdateType
 from playwright.sync_api import sync_playwright
+
 
 # Safe helper (avoids circular import)
 from helpers.test_context import set_current_param_row, get_current_param_row
@@ -85,9 +87,19 @@ def config(pytestconfig):
 
 @pytest.fixture(autouse=True)
 def reset_smart_globals():
-    FIXED_VALUES.clear()
-    FIXED_KEYWORDS.clear()
-    FIXED_EXPECTS.clear()
+
+    for key, value in list(FIXED_VALUES.items()):
+        if value[0] == UpdateType.DATA_PROVIDER:
+            del FIXED_VALUES[key]
+
+    for key, value in list(FIXED_KEYWORDS.items()):
+        if value[0] == UpdateType.DATA_PROVIDER:
+            del FIXED_KEYWORDS[key]
+
+    for key, value in list(FIXED_EXPECTS.items()):
+        if value[0] == UpdateType.DATA_PROVIDER:
+            del FIXED_EXPECTS[key]
+
     yield
 
 # ---------------------------------------------------------------------------

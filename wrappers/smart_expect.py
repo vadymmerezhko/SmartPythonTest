@@ -68,15 +68,16 @@ class SmartExpectProxy:
                                 print("Expectation failed")
                                 # Fix expected value
                                 if args:
-                                    new_value = fix_noname_parameter_value(
+                                    update = fix_noname_parameter_value(
                                         EXPECTED_TYPE, self.page, 0, str(args[0]),
                                         self.placeholder_manager)
+                                    new_value = update[1]
 
                                     if isinstance(new_value, str):
                                         new_value = (self.placeholder_manager.
                                                      replace_placeholders_with_values(new_value))
 
-                                    FIXED_EXPECTS[self.cache_key] = new_value
+                                    FIXED_EXPECTS[self.cache_key] = update
                                     args = args[:0] + (new_value,) + args[1:]
                                     # Retry with fixed expected value
                                     return target(*args, **kwargs)
@@ -92,12 +93,13 @@ class SmartExpectProxy:
             if self._smart_locator.config.get("record_mode"):
 
                 if self.cache_key in FIXED_EXPECTS:
-                    args[i] = FIXED_EXPECTS[self.cache_key]
+                    args[i] = FIXED_EXPECTS[self.cache_key][1]
                 else:
                     if arg is None:
-                        new_value = fix_noname_parameter_value(
+                        update = fix_noname_parameter_value(
                             EXPECTED_TYPE,self.page,0,"None",self.placeholder_manager)
-                        FIXED_EXPECTS[self.cache_key] = new_value
+                        new_value = update[1]
+                        FIXED_EXPECTS[self.cache_key] = update
                         args[i] = new_value
 
             if isinstance(args[i], str):

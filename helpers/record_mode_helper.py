@@ -3,6 +3,7 @@ from conftest import get_current_param_row
 import pathlib
 import re
 import tkinter as tk
+from enums.update_type import UpdateType
 from common.constnts import KEYWORD_PLACEHOLDER
 from playwright.sync_api import Page
 from tkinter import messagebox, simpledialog
@@ -19,9 +20,14 @@ from utils.code_utils import (get_caller_info,
                               replace_variable_in_data_provider)
 from utils.text_utils import replace_line_in_text
 
-def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_value, new_value):
+def update_value_in_source_file(arg_type: str, file_path: str, lineno: int,
+                                param_index: int, old_value: str, new_value: str) -> UpdateType:
     param_name = None
     data_provider_lineno = None
+    update_type = None
+
+    if old_value != "None":
+        old_value = f"'{old_value}'"
 
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -38,14 +44,12 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
 
             if current_line == lineno:
 
-                if old_value != "None":
-                    old_value = f"'{old_value}'"
-
                 updated_line = update_value_in_function_call(
                     line, param_index, old_value, f"'{new_value}'")
 
                 if updated_line is not None:
                     new_content = replace_line_in_text(new_content, current_line, updated_line)
+                    update_type = UpdateType.INLINE
                     break
                 else:
                     params_map = get_function_parameters_index_map(line)
@@ -57,12 +61,12 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
 
                 if updated_line is not None:
                     new_content = replace_line_in_text(new_content, current_line, updated_line)
+                    update_type = UpdateType.ASSIGNMENT
                     break
 
             if line.strip().startswith("@pytest.mark.parametrize") and current_line < lineno:
                 data_provider_lineno = current_line
                 break
-
 
     if new_content == content:
         # Fix None value in the data provider
@@ -94,6 +98,7 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
                         if updated_line is not None:
                             new_content = replace_line_in_text(
                                 new_content, current_line, updated_line)
+                            update_type = UpdateType.DATA_PROVIDER
                             break
                         else:
                             messagebox.askokcancel(
@@ -112,8 +117,11 @@ def update_value_in_source_file(arg_type, file_path, lineno, param_index, old_va
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-def fix_value_in_file(arg_type, page, file_path, lineno,code, param_index, old_value,
-                      placeholder_manager: PlaceholderManager):
+    return update_type
+
+def fix_value_in_file(arg_type: str, page: Page, file_path: str, lineno: int,
+                      code: str, param_index: int, old_value: str,
+                      placeholder_manager: PlaceholderManager) -> tuple:
 
     while True:
         file_name = os.path.basename(file_path)
@@ -155,12 +163,12 @@ def fix_value_in_file(arg_type, page, file_path, lineno,code, param_index, old_v
             break
 
     new_value = placeholder_manager.replace_values_with_placeholders(new_value)
-    update_value_in_source_file(arg_type, file_path, lineno, param_index, old_value, new_value)
+    update_type = update_value_in_source_file(arg_type, file_path, lineno, param_index, old_value, new_value)
 
-    return new_value
+    return (update_type, new_value)
 
-def fix_noname_parameter_value(arg_type, page, index, old_value,
-                               placeholder_manager: PlaceholderManager):
+def fix_noname_parameter_value(arg_type: str, page: Page, index: int, old_value: str,
+                               placeholder_manager: PlaceholderManager) -> tuple:
     param_index = index
     in_stack_block = False
 
@@ -198,7 +206,7 @@ def fix_noname_parameter_value(arg_type, page, index, old_value,
             param_index = get_parameter_index_from_function_def(filename, lineno, param_index)
 
 
-def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: str):
+def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: str) -> str:
     root = tk.Tk()
     root.withdraw()
 
@@ -236,6 +244,8 @@ def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: s
                 break
             else:
                 continue
+        else:
+            break
 
     return new_selector
 
