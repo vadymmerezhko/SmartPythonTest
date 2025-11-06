@@ -79,30 +79,16 @@ def config(pytestconfig):
 
     return cfg
 
-
 # ---------------------------------------------------------------------------
-# Clear FIXED_* maps only between test functions
+# Clear FIXED_* maps every test function run
 # ---------------------------------------------------------------------------
-_last_test_function = None
 
-
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_call(item):
-    """Clear SmartLocator/SmartExpect caches when moving to a new test function."""
-    global _last_test_function
-
-    current_func = item.originalname or item.name
-
-    # Detect transition to a new test function
-    if _last_test_function and _last_test_function != current_func:
-        print(f"[DEBUG] Clearing FIXED_* caches before new test: {current_func}")
-        FIXED_VALUES.clear()
-        FIXED_KEYWORDS.clear()
-        FIXED_EXPECTS.clear()
-
-    _last_test_function = current_func
-    yield  # run the actual test
-
+@pytest.fixture(autouse=True)
+def reset_smart_globals():
+    FIXED_VALUES.clear()
+    FIXED_KEYWORDS.clear()
+    FIXED_EXPECTS.clear()
+    yield
 
 # ---------------------------------------------------------------------------
 # Final cleanup after the entire session
