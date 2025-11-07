@@ -193,10 +193,12 @@ class SmartPage:
     def _fix_parameter(self, item: str, parameter: str):
         parameter_type = None
 
-        if item in "goto":
+        if item == "goto":
             parameter_type = PAGE_URL
-        elif item in "frame":
-            if parameter.strip().startswith("http"):
+
+        elif item == "frame":
+
+            if parameter.strip().startswith(("http", "/", "**")):
                 parameter_type = FRAME_URL
             else:
                 parameter_type = FRAME_NAME
