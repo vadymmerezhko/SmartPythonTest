@@ -1,9 +1,8 @@
-from decorators.class_decorators import auto_getters
 from playwright.sync_api import Page
 from wrappers.smart_locator import SmartLocator
 from wrappers.smart_page import SmartPage
 
-@auto_getters
+
 class WebFormPage(SmartPage):
 
     def __init__(self, page: Page, config: dict):

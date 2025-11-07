@@ -45,6 +45,10 @@ class SmartLocator:
         if self.cache_key in FIXED_SELECTORS:
             self.selector = FIXED_SELECTORS[self.cache_key]
 
+    # Sets range slider value
+    def set_range_value(self, value):
+        self.evaluate(f"el => el.value = {value}")
+
     def _get_field_info(self):
         stack = inspect.stack()
         for frame_info in stack:
