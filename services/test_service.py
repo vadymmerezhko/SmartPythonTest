@@ -5,8 +5,9 @@ class TestService:
 
     def login(self, page, config, username, password):
         login_page = LoginPage(page, config)
-        login_page.goto()
-        login_page.login(username, password)
+        login_page.goto(config["demo_base_url"])
+        login_page.fill_form(username, password)
+        login_page.submit_form()
 
     def verify_inventory_page(self, page, config, product, button_name):
         inventory_page = InventoryPage(page, config)

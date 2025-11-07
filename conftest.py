@@ -8,7 +8,9 @@ from playwright.sync_api import sync_playwright
 from helpers.test_context import set_current_param_row, get_current_param_row
 
 # Global maps from wrappers
-from wrappers.smart_locator import FIXED_SELECTORS, FIXED_VALUES, FIXED_KEYWORDS
+from wrappers.smart_locator import FIXED_SELECTORS, FIXED_VALUES
+from wrappers.smart_page import (FIXED_KEYWORDS, FIXED_PAGE_PARAMETERS,
+                                 FIXED_PLACEHOLDER_NAMES, FIXED_PLACEHOLDER_VALUES)
 from wrappers.smart_expect import FIXED_EXPECTS
 
 
@@ -87,6 +89,11 @@ def config(pytestconfig):
 
 @pytest.fixture(autouse=True)
 def reset_smart_globals():
+    # Reset global map items for every data provider test run
+
+    for key, value in list(FIXED_PAGE_PARAMETERS.items()):
+        if value[0] == UpdateType.DATA_PROVIDER:
+            del FIXED_PAGE_PARAMETERS[key]
 
     for key, value in list(FIXED_VALUES.items()):
         if value[0] == UpdateType.DATA_PROVIDER:
@@ -99,6 +106,14 @@ def reset_smart_globals():
     for key, value in list(FIXED_EXPECTS.items()):
         if value[0] == UpdateType.DATA_PROVIDER:
             del FIXED_EXPECTS[key]
+
+    for key, value in list(FIXED_PLACEHOLDER_NAMES.items()):
+        if value[0] == UpdateType.DATA_PROVIDER:
+            del FIXED_PLACEHOLDER_NAMES[key]
+
+    for key, value in list(FIXED_PLACEHOLDER_VALUES.items()):
+        if value[0] == UpdateType.DATA_PROVIDER:
+            del FIXED_PLACEHOLDER_VALUES[key]
 
     yield
 

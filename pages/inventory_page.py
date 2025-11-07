@@ -4,13 +4,14 @@ from wrappers.smart_locator import SmartLocator
 from wrappers.smart_expect import expect
 from urllib.parse import urljoin
 
+from wrappers.smart_page import SmartPage
+
 INVENTORY_PAGE_HEADER = 'Swag Labs'
 
-class InventoryPage(Page):
+class InventoryPage(SmartPage):
 
     def __init__(self, page: Page, config: dict):
-        self.page = page
-        self.config = config
+        super().__init__(page, config)
         # Selectors
         self.header = SmartLocator(self, "div[class='app_logo']")
         self.product_name = SmartLocator(self, "//*[normalize-space(text())='#KEYWORD']")
@@ -18,15 +19,6 @@ class InventoryPage(Page):
         self.product_image = SmartLocator(self, "xpath=//div[@class='inventory_item'][.//*[normalize-space(text())='#KEYWORD']]//img[@class='inventory_item_img']")
         self.add_to_cart_button = SmartLocator(self, "xpath=//div[@class='inventory_item_description'][.//*[normalize-space(text())='#KEYWORD']]//button[@class='btn btn_primary btn_small btn_inventory ']")
         self.inventory_page_url = urljoin(config['demo_base_url'], 'inventory.html')
-
-    def set_keyword(self, keyword):
-        self.product_name.set_keyword(keyword)
-        self.product_image.set_keyword(self.product_name.get_keyword())
-        self.product_price.set_keyword(self.product_name.get_keyword())
-        self.add_to_cart_button.set_keyword(self.product_name.get_keyword())
-
-    def add_placeholder(self, name: str):
-        self.add_to_cart_button.add_placeholder(name)
 
     def verify_page(self, product, button_text):
         expect(self.page).to_have_url(self.inventory_page_url)

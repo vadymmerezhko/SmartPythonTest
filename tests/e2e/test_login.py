@@ -11,8 +11,9 @@ from services.test_service import TestService
 # Page objects are used directly in the test
 def test_login_with_multiple_users(page, config, username, password, product):
     login_page = LoginPage(page, config)
-    login_page.goto()
-    login_page.login(username, password)
+    login_page.goto(config["demo_base_url"])
+    login_page.fill_form(username, password)
+    login_page.submit_form()
 
     inventory_page = InventoryPage(page, config)
     inventory_page.set_keyword(product)
@@ -37,8 +38,10 @@ def test_login_with_multiple_users_and_test_service(page, config, username, pass
 def test_login_with_key_value_placeholder(page, config, username, password, product):
     login_page = LoginPage(page, config)
     login_page.add_placeholder('password', 'secret_sauce')
-    login_page.goto()
-    login_page.login(username, password)
+    login_page.add_placeholder("demo_base_url")
+    login_page.goto(config["demo_base_url"])
+    login_page.fill_form(username, password)
+    login_page.submit_form()
 
     inventory_page = InventoryPage(page, config)
     inventory_page.set_keyword(product)
@@ -47,10 +50,12 @@ def test_login_with_key_value_placeholder(page, config, username, password, prod
 # Test with key-only placeholder
 def test_login_with_key_only_placeholder(page, config):
     login_page = LoginPage(page, config)
-    login_page.goto()
-    login_page.login('standard_user', 'secret_sauce')
+    login_page.add_placeholder('demo_base_url')
+    login_page.goto('#DEMO_BASE_URL#')
+    login_page.fill_form('standard_user', 'secret_sauce')
+    login_page.submit_form()
 
-    product = 'Sauce Labs Bike Light'
+    product = 'Sauce Labs Backpack'
     inventory_page = InventoryPage(page, config)
     inventory_page.set_keyword(product)
     inventory_page.add_placeholder('Test_placeholder')

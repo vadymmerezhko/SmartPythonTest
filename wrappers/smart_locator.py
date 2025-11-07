@@ -4,7 +4,6 @@ import re
 from playwright.sync_api import Locator
 
 from common.constnts import KEYWORD_PLACEHOLDER
-from helpers.placeholder_manager import PlaceholderManager
 from helpers.record_mode_helper import (fix_noname_parameter_value,
                                         handle_missing_locator,
                                         update_source_file)
@@ -12,14 +11,12 @@ from utils.code_utils import normalize_args
 
 
 PARAMETER_TYPE = "input"
-KEYWORD_TYPE = "keyword"
 
 # Global cache for runtime locator fixes
 FIXED_SELECTORS = {}
 # Global cache for runtime parameter None value fixes
 FIXED_VALUES = {}
-# Global cache for runtime keyword fixes
-FIXED_KEYWORDS = {}
+
 
 class SmartLocator:
     """
@@ -36,8 +33,7 @@ class SmartLocator:
         self.config = owner.config
         self.owner = owner
         self.selector = str(selector)
-        self.placeholder_manager = PlaceholderManager(owner.config)
-        self.keyword = None
+        self.placeholder_manager = owner.placeholder_manager
 
         # Detect field name and source file
         self.field_name, self.source_file = self._get_field_info()
@@ -48,35 +44,6 @@ class SmartLocator:
         # Reuse fixed locator if already updated this session
         if self.cache_key in FIXED_SELECTORS:
             self.selector = FIXED_SELECTORS[self.cache_key]
-
-    def set_keyword(self, keyword: str):
-        """
-        Sets dynamic data keyword value that:
-        1. Replaces the text match in the element selector string with #KEYWORD# placeholder
-        2. Replaces #KEYWORD# placeholder in the element selector string
-        This allows to use unique keyword variable as identifier.
-        :param keyword: The string value to used instead #KEYWORD# placeholder
-        """
-        self.keyword = keyword
-        # Replace locator keyword placeholder with keyword value
-        if self.selector and keyword:
-            self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, keyword)
-            FIXED_SELECTORS[self.cache_key] = self.selector
-
-        self.validate_keyword_value()
-
-
-    def get_keyword(self) -> str | None:
-        """
-        Gets dynamic data keyword value.
-        """
-        return self.keyword
-
-    def add_placeholder(self, name: str, value = None):
-        self.placeholder_manager.add_placeholder(name, value)
-
-    def remove_placeholder(self, name: str):
-        self.placeholder_manager.remove_placeholder(name)
 
     def _get_field_info(self):
         stack = inspect.stack()
@@ -90,8 +57,10 @@ class SmartLocator:
         return "unknown_field", inspect.getfile(self.owner.__class__)
 
     def _locator(self):
-        if self.selector and self.keyword:
-            self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, self.keyword)
+        keyword = self.owner.keyword
+
+        if self.selector and keyword:
+            self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, keyword)
         return self.page.locator(self.selector)
 
     @property
@@ -126,17 +95,21 @@ class SmartLocator:
         return target
 
     def __str__(self):
-        if self.selector and self.keyword:
-            self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, self.keyword)
+        keyword = self.get_keyword()
+
+        if self.selector and keyword:
+            self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, keyword)
         return f"<SmartLocator field='{self.field_name}' selector='{self.selector}'>"
 
     __repr__ = __str__
 
     def fix_locator(self) -> Locator:
+        keyword = self.owner.get_keyword()
+
         new_selector = handle_missing_locator(
-            self.page, self.cache_key, str(self.selector), self.keyword)
+            self.page, self.cache_key, str(self.selector), keyword)
         update_source_file(
-            self.source_file, self.field_name, self.cache_key, self.keyword, new_selector)
+            self.source_file, self.field_name, self.cache_key, keyword, new_selector)
         new_locator = self.page.locator(new_selector)
         # Update this instance + cache
         FIXED_SELECTORS[self.cache_key] = new_selector
@@ -166,14 +139,3 @@ class SmartLocator:
 
         return tuple(args), kwargs
 
-    def validate_keyword_value(self):
-
-        if not self.keyword:
-            if self.cache_key in FIXED_KEYWORDS:
-                self.keyword = FIXED_KEYWORDS[self.cache_key][1]
-            else :
-                # Fix keyword None or empty value in record mode
-                update = fix_noname_parameter_value(
-                    KEYWORD_TYPE, self.page,0, str(self.keyword), self.placeholder_manager)
-                FIXED_KEYWORDS[self.cache_key] = update
-                self.keyword = update[1]
