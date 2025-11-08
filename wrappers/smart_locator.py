@@ -45,9 +45,6 @@ class SmartLocator:
         if self.cache_key in FIXED_SELECTORS:
             self.selector = FIXED_SELECTORS[self.cache_key]
 
-    # Sets range slider value
-    def set_range_value(self, value):
-        self.evaluate(f"el => el.value = {value}")
 
     def _get_field_info(self):
         stack = inspect.stack()
@@ -80,21 +77,13 @@ class SmartLocator:
                 # Normalize so all kwargs become positional
                 args, kwargs = normalize_args(target, *args, **kwargs)
                 # Validate None values and fix them if any
-                args, kwargs = self.validate_arguments(args, kwargs)
+                args, kwargs = self._validate_arguments(args, kwargs)
 
                 try:
                     return target(*args, **kwargs)
                 except Exception as e:
-                    error_message = str(e)
-
-                    if self.config.get("record_mode"):
-
-                        if ("No node found" in error_message or
-                                "Timeout" in error_message or
-                                "Unexpected token" in error_message):
-                            new_locator = self.fix_locator()
-                            return getattr(new_locator, item)(*args, **kwargs)
-                    raise
+                    new_locator, args, kwargs = self._handle_error(args, kwargs, e)
+                    return getattr(new_locator, item)(*args, **kwargs)
             return wrapper
         return target
 
@@ -107,7 +96,7 @@ class SmartLocator:
 
     __repr__ = __str__
 
-    def fix_locator(self) -> Locator:
+    def _fix_locator(self) -> Locator:
         keyword = self.owner.get_keyword()
 
         new_selector = handle_missing_locator(
@@ -120,7 +109,7 @@ class SmartLocator:
 
         return new_locator
 
-    def validate_arguments(self, args, kwargs) -> tuple:
+    def _validate_arguments(self, args, kwargs) -> tuple:
         args = list(args)
 
         for i, arg in enumerate(args):
@@ -143,3 +132,30 @@ class SmartLocator:
 
         return tuple(args), kwargs
 
+    def _handle_error(self, args, kwargs, e: Exception):
+        error_message = str(e)
+
+        if self.config.get("record_mode"):
+
+            if "Locator.select_option: Timeout" in error_message:
+                new_locator = self._locator()
+                # Fix expected value
+                if args:
+                    update = fix_noname_parameter_value(
+                        PARAMETER_TYPE, self.page, 0, str(args[0]),
+                        self.placeholder_manager)
+                    new_value = update[1]
+
+                    if isinstance(new_value, str):
+                        new_value = (self.placeholder_manager.
+                                     replace_placeholders_with_values(new_value))
+
+                    FIXED_VALUES[self.cache_key] = update
+                    args = args[:0] + (new_value,) + args[1:]
+
+            elif ("No node found" in error_message or
+                    "Timeout" in error_message or
+                    "Unexpected token" in error_message):
+                new_locator = self._fix_locator()
+
+        return new_locator, args, kwargs

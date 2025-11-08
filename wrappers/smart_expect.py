@@ -8,7 +8,7 @@ EXPECTED_TYPE = "expected"
 FIXED_EXPECTS = {}
 
 
-class SmartExpectProxy:
+class SmartExpect:
     def __init__(self, actual):
         self._smart_locator = None
         if isinstance(actual, SmartLocator):
@@ -43,49 +43,19 @@ class SmartExpectProxy:
 
                     try:
                         args, kwargs = normalize_args(target, *args, **kwargs)
-                        args, kwargs = self.validate_arguments(args, kwargs)
+                        args, kwargs = self._validate_arguments(args, kwargs)
 
                         target = getattr(self._inner, item)
                         return target(*args, **kwargs)
 
                     except Exception as e:
-                        error_message = str(e)
-
-                        if self._smart_locator.config.get("record_mode"):
-                            try:
-                                count = self.page.locator(self._smart_locator.selector).count()
-                            except Exception:
-                                count = 0
-
-                            if count == 0:
-                                fixed_locator = self._smart_locator.fix_locator()
-                                self._inner = pw_expect(fixed_locator)
-                                target = getattr(self._inner, item)
-                                # Retry with fixed locator
-                                return target(*args, **kwargs)
-
-                            if "Locator expected" in error_message:
-                                print("Expectation failed")
-                                # Fix expected value
-                                if args:
-                                    update = fix_noname_parameter_value(
-                                        EXPECTED_TYPE, self.page, 0, str(args[0]),
-                                        self.placeholder_manager)
-                                    new_value = update[1]
-
-                                    if isinstance(new_value, str):
-                                        new_value = (self.placeholder_manager.
-                                                     replace_placeholders_with_values(new_value))
-
-                                    FIXED_EXPECTS[self.cache_key] = update
-                                    args = args[:0] + (new_value,) + args[1:]
-                                    # Retry with fixed expected value
-                                    return target(*args, **kwargs)
-                        raise
+                        target, args, kwargs = self._handle_error(item, target, args, kwargs, e)
+                        # Retry with fixed expected value
+                        return target(*args, **kwargs)
             return wrapper
         return target
 
-    def validate_arguments(self, args, kwargs):
+    def _validate_arguments(self, args, kwargs):
         args = list(args)
 
         for i, arg in enumerate(args):
@@ -107,6 +77,37 @@ class SmartExpectProxy:
 
         return tuple(args), kwargs
 
+    def _handle_error(self, item: str, target, args, kwargs, e: Exception):
+        error_message = str(e)
+
+        if self._smart_locator.config.get("record_mode"):
+            try:
+                count = self.page.locator(self._smart_locator.selector).count()
+            except Exception:
+                count = 0
+
+            if count == 0:
+                fixed_locator = self._smart_locator._fix_locator()
+                self._inner = pw_expect(fixed_locator)
+                target = getattr(self._inner, item)
+
+            elif "Locator expected" in error_message:
+                # Fix expected value
+                if args:
+                    update = fix_noname_parameter_value(
+                        EXPECTED_TYPE, self.page, 0, str(args[0]),
+                        self.placeholder_manager)
+                    new_value = update[1]
+
+                    if isinstance(new_value, str):
+                        new_value = (self.placeholder_manager.
+                                     replace_placeholders_with_values(new_value))
+
+                    FIXED_EXPECTS[self.cache_key] = update
+                    args = args[:0] + (new_value,) + args[1:]
+
+        return target, args, kwargs
+
     def __dir__(self):
         return dir(self._inner)
 
@@ -114,4 +115,4 @@ class SmartExpectProxy:
 
 def expect(actual):
     """Public entry point: works with SmartLocator or native Playwright objects."""
-    return SmartExpectProxy(actual)
+    return SmartExpect(actual)

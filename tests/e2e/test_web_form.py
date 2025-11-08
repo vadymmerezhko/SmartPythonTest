@@ -32,15 +32,13 @@ def test_web_form_page(page, config):
     web_form_page.radiobutton2.check()
     web_form_page.color_picker.fill('#b21f75')
     web_form_page.date_picker.fill('11/07/2025')
-    # TODO: Add set_range_value method to SmartLocator
-    web_form_page.example_range.set_range_value('3')
+    web_form_page.example_range.fill('3')
 
     # Verify new values on the form
     expect(web_form_page.text_input).to_have_value('Text input')
     expect(web_form_page.textarea_input).to_have_value('Some text in textarea')
     expect(web_form_page.dropdown_select).to_have_value('2')
     expect(web_form_page.dropdown_data_list).to_have_value('Los Angeles')
-    # TODO: Fix issue with fake path in SmartExcept
     expect(web_form_page.file_input).to_have_value(re.compile(r".*README\.md$"))
     expect(web_form_page.checkbox1).not_to_be_checked()
     expect(web_form_page.checkbox2).to_be_checked()
