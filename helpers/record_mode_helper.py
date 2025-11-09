@@ -10,7 +10,8 @@ from tkinter import messagebox, simpledialog
 from helpers.placeholder_manager import PlaceholderManager
 from utils.web_utils import (select_element_on_page,
                              get_element_value_or_text,
-                             get_unique_element_selector)
+                             get_unique_element_selector,
+                             replace_br_tags_with_paragraph_tags)
 from utils.code_utils import (get_caller_info,
                               get_function_parameters_index_map,
                               update_value_in_function_call,
@@ -19,6 +20,7 @@ from utils.code_utils import (get_caller_info,
                               get_data_provider_names_map,
                               replace_variable_in_data_provider)
 from utils.text_utils import replace_line_in_text
+
 
 def update_value_in_source_file(arg_type: str, file_path: str, lineno: int,
                                 param_index: int, old_value: str, new_value: str) -> UpdateType:
@@ -142,6 +144,7 @@ def fix_value_in_file(arg_type: str, page: Page, file_path: str, lineno: int,
             raise RuntimeError("Record mode interrupted by user.")
 
         if new_value == old_value:
+            replace_br_tags_with_paragraph_tags(page, "body")
             selected_locator = select_element_on_page(page)
             new_value = get_element_value_or_text(selected_locator)
 

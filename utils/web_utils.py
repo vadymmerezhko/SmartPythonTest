@@ -969,3 +969,63 @@ def get_element_value_or_text(locator):
                 pass
 
     return value
+
+
+def replace_br_tags_with_paragraph_tags(page, selector: str):
+    """
+    Replace <br> sequences under `selector` with <p>...</p> wrapping ONLY text segments
+    between <br> tags. Non-text child elements are preserved and not wrapped.
+    Works recursively through all descendants.
+    """
+    page.evaluate(
+        """(sel) => {
+            const root = document.querySelector(sel);
+            if (!root) return;
+
+            function process(el) {
+                const nodes = Array.from(el.childNodes);
+                const hasBr = nodes.some(n => n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'BR');
+                if (hasBr) {
+                    const frag = document.createDocumentFragment();
+                    let buffer = '';
+
+                    function flush() {
+                        const txt = buffer.trim();
+                        if (txt) {
+                            const p = document.createElement('p');
+                            p.textContent = txt;
+                            frag.appendChild(p);
+                        }
+                        buffer = '';
+                    }
+
+                    for (const node of nodes) {
+                        if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
+                            // split point
+                            flush();
+                            // drop the <br>
+                            continue;
+                        } else if (node.nodeType === Node.TEXT_NODE) {
+                            buffer += node.textContent ?? '';
+                        } else {
+                            // preserve other elements intact (don’t wrap them)
+                            flush();
+                            frag.appendChild(node); // moves the node
+                        }
+                    }
+                    flush();
+
+                    el.replaceChildren(frag);
+                }
+
+                // Recurse into element children
+                for (const child of el.children) {
+                    process(child);
+                }
+            }
+
+            process(root);
+        }""",
+        selector,
+    )
+

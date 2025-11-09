@@ -1,5 +1,5 @@
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import Page, sync_playwright
 from unittest.mock import MagicMock
 from urllib.parse import urljoin
 from utils.web_utils import (check_locators_geometry_match,
@@ -17,7 +17,9 @@ from utils.web_utils import (check_locators_geometry_match,
                              highlight_element,
                              reset_element_style,
                              css_to_xpath,
-                             xpath_to_css)
+                             xpath_to_css,
+                             replace_br_tags_with_paragraph_tags)
+
 
 LOGIN_URL = "https://www.saucedemo.com/"
 USERNAME = "standard_user"
@@ -508,3 +510,76 @@ def test_cart_icon_contained_in_header(login):
 def test_cart_icon_not_contained_in_inventory_item(login):
     """Negative test: cart icon is NOT inside a product item box."""
     _assert_contains(login, ".inventory_item", "#shopping_cart_container", expected=False)
+
+
+@pytest.fixture(scope="session")
+def browser_context():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        yield browser
+        browser.close()
+
+
+@pytest.fixture
+def page(browser_context):
+    page = browser_context.new_page()
+    page.goto("https://www.saucedemo.com/")
+    yield page
+    page.close()
+
+
+def test_replace_br_tags_with_paragraph_tags_creates_p_tags(page: Page):
+    # Inject a test div
+    page.evaluate("""
+        const div = document.createElement('div');
+        div.id = 'test';
+        div.innerHTML = 'first<br>second<br>third';
+        document.body.appendChild(div);
+    """)
+
+    # Run the replacement
+    replace_br_tags_with_paragraph_tags(page, "#test")
+
+    # Get the modified HTML
+    html = page.inner_html("#test")
+
+    # Expected result
+    expected = "<p>first</p><p>second</p><p>third</p>"
+    assert html == expected, f"Expected {expected!r}, got {html!r}"
+
+
+def test_replace_br_tags_with_paragraph_tags_handles_empty(page: Page):
+    page.evaluate("""
+        const div = document.createElement('div');
+        div.id = 'empty_test';
+        div.innerHTML = 'one<br><br>two';
+        document.body.appendChild(div);
+    """)
+
+    replace_br_tags_with_paragraph_tags(page, "#empty_test")
+
+    html = page.inner_html("#empty_test")
+    expected = "<p>one</p><p>two</p>"
+    assert html == expected, f"Expected {expected!r}, got {html!r}"
+
+
+def test_replace_br_tags_within_div_tags_with_paragraph_tags(page: Page):
+    page.evaluate("""
+        const div = document.createElement('div');
+        div.id = 'empty_test';
+        div.innerHTML = '<div>one<br>two<br>three</div>';
+        document.body.appendChild(div);
+    """)
+
+    replace_br_tags_with_paragraph_tags(page, "#empty_test")
+
+    html = page.inner_html("#empty_test")
+    expected = "<div><p>one</p><p>two</p><p>three</p></div>"
+    assert html == expected, f"Expected {expected!r}, got {html!r}"
+
+def test_replace_br_tags_with_paragraph_tags_ignores_missing_selector(page: Page):
+    # Should not raise any error if selector not found
+    replace_br_tags_with_paragraph_tags(page, "#does_not_exist")
+
+    # Ensure page still works
+    assert "Swag Labs" in page.title()
