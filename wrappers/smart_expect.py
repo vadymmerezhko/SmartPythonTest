@@ -91,17 +91,15 @@ class SmartExpect:
                 self._inner = pw_expect(fixed_locator)
                 target = getattr(self._inner, item)
 
-            elif "Locator expected" in error_message:
+            elif isinstance(args[0], str):
                 # Fix expected value
                 if args:
                     update = fix_noname_parameter_value(
                         EXPECTED_TYPE, self.page, 0, str(args[0]),
                         self.placeholder_manager)
                     new_value = update[1]
-
-                    if isinstance(new_value, str):
-                        new_value = (self.placeholder_manager.
-                                     replace_placeholders_with_values(new_value))
+                    new_value = (self.placeholder_manager.
+                                 replace_placeholders_with_values(new_value))
 
                     FIXED_EXPECTS[self.cache_key] = update
                     args = args[:0] + (new_value,) + args[1:]

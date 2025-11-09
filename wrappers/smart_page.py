@@ -68,6 +68,9 @@ class SmartPage:
     def get_keyword(self):
         return self.keyword
 
+    def reset_keyword(self):
+        self.keyword = None
+
     def clear_keyword(self):
         self.keyword = None
 

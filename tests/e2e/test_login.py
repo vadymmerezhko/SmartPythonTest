@@ -17,7 +17,7 @@ def test_login_with_multiple_users(page, config, username, password, product):
 
     inventory_page = InventoryPage(page, config)
     inventory_page.set_keyword(product)
-    inventory_page.verify_page(product, 'Add to cart')
+    inventory_page.verify_page('Add to cart')
 
 # Test with test service
 @pytest.mark.parametrize("username,password,product", [
@@ -45,7 +45,7 @@ def test_login_with_key_value_placeholder(page, config, username, password, prod
 
     inventory_page = InventoryPage(page, config)
     inventory_page.set_keyword(product)
-    inventory_page.verify_page(product, 'Add to cart')
+    inventory_page.verify_page('Add to cart')
 
 # Test with key-only placeholder
 def test_login_with_key_only_placeholder(page, config):
@@ -59,4 +59,4 @@ def test_login_with_key_only_placeholder(page, config):
     inventory_page = InventoryPage(page, config)
     inventory_page.set_keyword(product)
     inventory_page.add_placeholder('Test_placeholder')
-    inventory_page.verify_page(product, '#TEST_PLACEHOLDER#')
+    inventory_page.verify_page('#TEST_PLACEHOLDER#')

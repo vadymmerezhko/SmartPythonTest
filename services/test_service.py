@@ -12,4 +12,4 @@ class TestService:
     def verify_inventory_page(self, page, config, product, button_name):
         inventory_page = InventoryPage(page, config)
         inventory_page.set_keyword(product)
-        inventory_page.verify_page(product, button_name)
+        inventory_page.verify_page(button_name)
