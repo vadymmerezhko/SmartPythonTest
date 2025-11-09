@@ -1,5 +1,6 @@
 import inspect
 import re
+from asyncio import new_event_loop
 
 from playwright.sync_api import Locator
 
@@ -81,8 +82,8 @@ class SmartLocator:
 
                 try:
                     return target(*args, **kwargs)
-                except Exception as e:
-                    new_locator, args, kwargs = self._handle_error(args, kwargs, e)
+                except Exception:
+                    new_locator, args, kwargs = self._handle_error(args, kwargs)
                     return getattr(new_locator, item)(*args, **kwargs)
             return wrapper
         return target
@@ -132,30 +133,29 @@ class SmartLocator:
 
         return tuple(args), kwargs
 
-    def _handle_error(self, args, kwargs, e: Exception):
-        error_message = str(e)
+    def _handle_error(self, args, kwargs):
+        new_locator = None
 
         if self.config.get("record_mode"):
+            try:
+                count = self.page.locator(self.selector).count()
+            except Exception:
+                count = 0
+            # Fix locator
+            if count == 0:
+                new_locator = self._fix_locator()
 
-            if "Locator.select_option: Timeout" in error_message:
+            # Fix parameter
+            elif args:
                 new_locator = self._locator()
-                # Fix expected value
                 if args:
                     update = fix_noname_parameter_value(
                         PARAMETER_TYPE, self.page, 0, str(args[0]),
                         self.placeholder_manager)
                     new_value = update[1]
-
-                    if isinstance(new_value, str):
-                        new_value = (self.placeholder_manager.
-                                     replace_placeholders_with_values(new_value))
-
+                    new_value = (self.placeholder_manager.
+                                 replace_placeholders_with_values(new_value))
                     FIXED_VALUES[self.cache_key] = update
                     args = args[:0] + (new_value,) + args[1:]
-
-            elif ("No node found" in error_message or
-                    "Timeout" in error_message or
-                    "Unexpected token" in error_message):
-                new_locator = self._fix_locator()
 
         return new_locator, args, kwargs
