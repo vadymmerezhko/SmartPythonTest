@@ -15,7 +15,7 @@ on:
       - fix**
 
 jobs:
-  test:
+  tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -56,18 +56,25 @@ jobs:
           mkdir -p reports/e2e
           xvfb-run -a pytest tests/e2e/ --html=reports/e2e/report.html --self-contained-html -v
 
-    # Always run after all steps (even if above failed)
-    post:
-      - name: Upload unit test report
+      # Always upload reports (even if tests fail)
+      - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-report
-          path: reports/unit/report.html
+          name: all-test-reports
+          path: reports/
 
-      - name: Upload E2E test report
-        if: always()
-        uses: actions/upload-artifact@v4
+  upload-reports:
+    # This runs *after* the tests job, even if it fails
+    runs-on: ubuntu-latest
+    needs: tests
+    if: always()
+    steps:
+      - name: Download test reports
+        uses: actions/download-artifact@v4
         with:
-          name: e2e-tests-report
-          path: reports/e2e/report.html
+          name: all-test-reports
+
+      - name: Display report upload summary
+        run: |
+          echo "Test reports uploaded successfully even if tests failed."
