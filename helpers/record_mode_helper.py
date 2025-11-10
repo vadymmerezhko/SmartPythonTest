@@ -1,4 +1,5 @@
 import os
+import sys
 from conftest import get_current_param_row
 import pathlib
 import re
@@ -144,7 +145,7 @@ def fix_value_in_file(arg_type: str, page: Page, file_path: str, lineno: int,
         )
 
         if new_value is None:
-            raise RuntimeError("Record mode interrupted by user.")
+            system_exit()
 
         if new_value == old_value:
             replace_br_tags_with_paragraph_tags(page, "body")
@@ -230,7 +231,7 @@ def handle_missing_locator(page: Page, cache_key: str, selector: str, keyword: s
         )
 
         if new_selector is None:
-            raise RuntimeError("Record mode interrupted by user.")
+            system_exit()
 
         if new_selector == selector:
             selected_locator = select_element_on_page(page)
@@ -284,3 +285,6 @@ def update_source_file(source_file: str, field_name: str, cache_key, keyword: st
                 f"Keyword: {keyword}\n"
                 "Click OK or Cancel to terminate record mode."
             )
+
+def system_exit():
+    os._exit(1)
