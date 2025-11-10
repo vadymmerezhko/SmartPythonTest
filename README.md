@@ -1,6 +1,6 @@
 # Playwright Python Project
 
-Version: **1.6.0**
+Version: **1.7.0**
 
 This project uses [Playwright](https://playwright.dev/python/) for end-to-end testing of web applications.  
 It is written in Python and provides a foundation for building reliable, fast, and maintainable UI tests.
@@ -9,19 +9,13 @@ It is written in Python and provides a foundation for building reliable, fast, a
 
 ## Features
 
-- Cross-browser testing (Chromium, Firefox, WebKit)
+- Cross-browser testing (Chromium, Firefox, WebKit, Chrome, Edge)
 - Headless and headed execution modes
 - Automatic waiting for elements
 - Playwright Trace Viewer support (screenshots, video, and trace logs)
 - Configurable test reports (HTML, JSON, and trace files)
-
----
-
-## Prerequisites
-
-- [Python 3.8+](https://www.python.org/downloads/)
-- [Node.js](https://nodejs.org/) (required for Playwright installation)
-- [pip](https://pip.pypa.io/en/stable/)
+- Record mode for element selectors, input and expected values initializing
+- Self-healing element selectors and expected values in record mode  
 
 ---
 
@@ -37,63 +31,78 @@ It is written in Python and provides a foundation for building reliable, fast, a
 
    ```bash
    python -m venv .venv
- 
-3. Activate it with Windows PowerShell:
+   
+3. Download and install Python 3.x.x (latest stable version):
+
+   ```bash
+   ttps://www.python.org/downloads/windows/
+
+4. Install pip:
+   
+    ```bash
+   python -m pip install --upgrade pip
+
+5. Install Playwright:
+
+    ```bash
+    playwright install --with-deps
+
+6. Activate it with Windows PowerShell:
 
    ```bash
    .venv\Scripts\Activate.ps1
 
-4. Or activate it with Windows CMD:
+7. Or activate it with Windows CMD:
 
    ```bash
    .venv\Scripts\activate.bat
 
-5. Or activate it with Linux/macOS:
+8. Or activate it with Linux/macOS:
 
    ```bash
    source .venv/bin/activate
 
-6. Install dependencies into this env:
+9. Install dependencies into this env:
 
    ```bash
    pip install -r requirements.txt
 
-7. Run all tests:
+10. Run all tests:
 
    ```bash
    pytest
 
-8. Run all tests in test file:
+11. Run all tests in test file:
 
    ```bash
-   pytest tests/test_login_positive.py
+   pytest tests/test_login_demo.py
 
-9. Run specific test in test file:
+12. Run specific test in test file:
 
    ```bash
    pytest -k "test_login_with_valid_credentials"
 
-10. Show detailed logs in console:
+13. Show detailed logs in console:
 
    ```bash
    pytest -v
    
-11. Generate an HTML report:
+14. Generate an HTML report:
 
    ```bash
    pytest --html=report.html --self-contained-html
 
-12. Run tests in headed mode (see the browser window):
+15. Run tests in headed mode (see the browser window):
 
    ```bash
    pytest --headed
 
-13. Run tests in record mode for debug purpose:
+16. Run tests in record mode for debug purpose:
 
    ```bash
    pytest --record_mode=true
    
-14. Run tests on specific base URL:
+17. Run tests on specific base URL:
 
    ```bash
    pytest --base-url=https://staging.saucedemo.com/
