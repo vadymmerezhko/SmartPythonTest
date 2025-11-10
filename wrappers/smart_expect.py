@@ -44,6 +44,7 @@ class SmartExpect:
                     try:
                         args, kwargs = normalize_args(target, *args, **kwargs)
                         args, kwargs = self._validate_arguments(args, kwargs)
+                        self._smart_locator._highlight_element_with_delay(self._smart_locator._locator())
 
                         target = getattr(self._inner, item)
                         return target(*args, **kwargs)

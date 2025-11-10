@@ -1,14 +1,13 @@
 import inspect
 import re
-from asyncio import new_event_loop
-
+import time
 from playwright.sync_api import Locator
-
 from common.constnts import KEYWORD_PLACEHOLDER
 from helpers.record_mode_helper import (fix_noname_parameter_value,
                                         handle_missing_locator,
                                         update_source_file)
 from utils.code_utils import normalize_args
+from utils.web_utils import highlight_element, reset_element_style
 
 
 PARAMETER_TYPE = "input"
@@ -83,6 +82,8 @@ class SmartLocator:
                 locator = self._validate_locator(self._locator())
 
                 try:
+                    self._highlight_element_with_delay(locator)
+
                     return getattr(locator, item)(*args, **kwargs)
                 except Exception:
                     new_locator, args, kwargs = self._handle_error(args, kwargs)
@@ -170,3 +171,19 @@ class SmartLocator:
                 return self._fix_locator()
 
         return locator
+
+    def _highlight_element_with_delay(self, locator):
+        step_delay_milliseconds = self.config.get("step_delay")
+
+        try:
+            step_delay_seconds = float(step_delay_milliseconds) / 1000.0
+        except (TypeError, ValueError):
+            step_delay_seconds = 0.0
+
+        if self.config.get("highlight"):
+            element_style = highlight_element(locator)
+            time.sleep(step_delay_seconds)
+            reset_element_style(locator, element_style)
+
+        elif step_delay_seconds > 0.0:
+            time.sleep(step_delay_seconds)

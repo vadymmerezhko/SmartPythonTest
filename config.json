@@ -3,6 +3,8 @@
   "browser": "chromium",
   "headless": true,
   "record_mode": false,
+  "highlight": false,
+  "step_delay": 0,
   "timeout": 10000,
   "test_placeholder": "Add to cart"
 }

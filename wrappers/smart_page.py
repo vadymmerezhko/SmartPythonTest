@@ -1,5 +1,6 @@
 import inspect
 import os
+import time
 from playwright.sync_api import Page
 from helpers.placeholder_manager import PlaceholderManager
 from helpers.record_mode_helper import (handle_missing_locator,
@@ -82,6 +83,7 @@ class SmartPage:
                 args, kwargs = normalize_args(target, *args, **kwargs)
                 args, kwargs = self._validate_arguments(item, args, kwargs)
                 args, kwargs = self._replace_placeholders(args, kwargs)
+                self._make_step_delay()
 
                 try:
                     return target(*args, **kwargs)
@@ -234,5 +236,16 @@ class SmartPage:
                 args, kwargs = self._replace_placeholders(args, kwargs)
 
         return args, kwargs
+
+    def _make_step_delay(self):
+        step_delay_milliseconds = self.config.get("step_delay")
+
+        try:
+            step_delay_seconds = float(step_delay_milliseconds) / 1000.0
+        except (TypeError, ValueError):
+            step_delay_seconds = 0.0
+
+        if step_delay_seconds > 0.0:
+            time.sleep(step_delay_seconds)
 
     __repr__ = __str__

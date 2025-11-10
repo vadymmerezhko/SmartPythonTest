@@ -50,11 +50,31 @@ def pytest_addoption(parser):
         choices=["true", "false"],
         help="Override record_mode from config.json",
     )
+
+    parser.addoption(
+        "--highlight",
+        action="store",
+        choices=["true", "false"],
+        help="Highlight elements during tests",
+    )
+
+    parser.addoption(
+        "--step_delay",
+        action="store",
+        type=int,
+        help="Delay (in ms) between steps",
+    )
+
     parser.addoption(
         "--username",
-        "--test_placeholder",
         action="store",
         help="Custom username override",
+    )
+
+    parser.addoption(
+        "--test_placeholder",
+        action="store",
+        help="Override test placeholder text",
     )
 
 
@@ -65,23 +85,44 @@ def pytest_addoption(parser):
 def config(pytestconfig):
     cfg = CONFIG.copy()
 
+    # Browser and headless
     browser = pytestconfig.getoption("browser")
     headed = pytestconfig.getoption("headed")
     if browser:
         cfg["browser"] = browser
     cfg["headless"] = not bool(headed)
 
+    # Record mode
     record_mode = pytestconfig.getoption("record_mode")
     if record_mode is not None:
         cfg["record_mode"] = record_mode.lower() == "true"
     else:
         cfg["record_mode"] = bool(cfg.get("record_mode", False))
 
+    # Username
     username = pytestconfig.getoption("username")
     if username:
         cfg["username"] = username
 
+    # Highlight mode
+    highlight = pytestconfig.getoption("highlight")
+    if highlight is not None:
+        cfg["highlight"] = highlight.lower() == "true"
+    else:
+        cfg["highlight"] = bool(cfg.get("highlight", False))
+
+    # Step delay
+    step_delay = pytestconfig.getoption("step_delay")
+    if step_delay is not None:
+        try:
+            cfg["step_delay"] = float(step_delay)
+        except ValueError:
+            cfg["step_delay"] = 0.0
+    else:
+        cfg["step_delay"] = float(cfg.get("step_delay", 0.0))
+
     return cfg
+
 
 # ---------------------------------------------------------------------------
 # Clear FIXED_* maps every test function run

@@ -1,6 +1,6 @@
 # Playwright Python Project
 
-Version: **1.9.10**
+Version: **1.9.11**
 
 This project uses [Playwright](https://playwright.dev/python/) for end-to-end testing of web applications.  
 It is written in Python and provides a foundation for building reliable, fast, and maintainable UI tests.
@@ -110,3 +110,13 @@ It is written in Python and provides a foundation for building reliable, fast, a
 
    ```bash
    pytest --base-url=https://staging.saucedemo.com/
+   
+19. Run tests and highlight the current element:
+
+   ```bash
+   pytest --highlight=true
+   
+20. Run tests and make delay before every test step in milliseconds:
+
+   ```bash
+   pytest --step_delay=500
