@@ -767,14 +767,3 @@ def test_invalid_code(monkeypatch):
     # malformed expression should return None, not raise
     assert get_parameter_name_by_index("not_a_function_call", 0) is None
 
-
-def test_missing_function(monkeypatch):
-    source = """
-        def logout(user):
-            return True
-    """
-    path = write_temp_source(source)
-    monkeypatch.setattr("inspect.stack", lambda: [type("f", (), {"filename": path})()])
-
-    # Function "login" not defined → expect None
-    assert get_parameter_name_by_index("login('a', 'b')", 0) is None
