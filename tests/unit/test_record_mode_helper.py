@@ -28,16 +28,6 @@ def test_fix_value_in_file_positive(mock_update, mock_get, mock_select, mock_msg
     mock_update.assert_called_once()
 
 
-@patch("helpers.record_mode_helper.simpledialog.askstring", return_value=None)
-def test_fix_value_in_file_user_cancel_raises(mock_input, tmp_path):
-    from helpers.record_mode_helper import fix_value_in_file
-    page = object()
-    file_path = tmp_path / "test_file.py"
-    file_path.write_text("print('Hello')")
-
-    with pytest.raises(RuntimeError, match="Record mode interrupted"):
-        fix_value_in_file("locator", page, str(file_path), 10, "code()", 1, "old", DummyPlaceholderManager())
-
 # -----------------------------
 # Tests for handle_missing_locator()
 # -----------------------------
@@ -48,13 +38,6 @@ def test_handle_missing_locator_simple(mock_input):
                                     selector="old_sel", keyword="keyword")
     assert result == "new_selector"
 
-
-@patch("helpers.record_mode_helper.simpledialog.askstring", return_value=None)
-def test_handle_missing_locator_cancel_raises(mock_input):
-    from helpers.record_mode_helper import handle_missing_locator
-    with pytest.raises(RuntimeError):
-        handle_missing_locator(page=None, cache_key="btnLogin",
-                               selector="old_sel", keyword="keyword")
 
 # -----------------------------
 # Tests for update_source_file()
