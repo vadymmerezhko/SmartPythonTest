@@ -27,7 +27,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'   # or 3.12/3.13 depending on your project
+          python-version: '3.12'
 
       # Install dependencies
       - name: Install dependencies
@@ -36,35 +36,37 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps
 
-      # Install GUI
+      # Start virtual display for GUI tests
       - name: Start virtual display
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
           Xvfb :99 -ac &
-          export DISPLAY=:99
+          echo "DISPLAY=:99" >> $GITHUB_ENV
 
-      # Run pytest unit tests
+      # Run pytest unit tests (if this fails, job stops — as desired)
       - name: Run unit tests with pytest
         run: |
           mkdir -p reports/unit
           xvfb-run -a pytest tests/unit/ --html=reports/unit/report.html --self-contained-html -v
 
-      # Run pytest E2E test
+      # Run pytest E2E tests (if this fails, job stops immediately)
       - name: Run E2E tests with pytest
         run: |
           mkdir -p reports/e2e
           xvfb-run -a pytest tests/e2e/ --html=reports/e2e/report.html --self-contained-html -v
 
-      # Upload HTML unit test report as GitHub artifact
+    # Always run after all steps (even if above failed)
+    post:
       - name: Upload unit test report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-tests-report
           path: reports/unit/report.html
 
-      # Upload HTML E2E test report as GitHub artifact
       - name: Upload E2E test report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-tests-report
