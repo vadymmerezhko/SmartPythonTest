@@ -18,7 +18,8 @@ from utils.code_utils import (get_caller_info,
                               get_parameter_index_from_function_def,
                               replace_variable_assignment,
                               get_data_provider_names_map,
-                              replace_variable_in_data_provider)
+                              replace_variable_in_data_provider,
+                              get_parameter_name_by_index)
 from utils.text_utils import replace_line_in_text
 
 
@@ -127,12 +128,14 @@ def fix_value_in_file(arg_type: str, page: Page, file_path: str, lineno: int,
 
     while True:
         file_name = os.path.basename(file_path)
+        param_name = get_parameter_name_by_index(code, param_index)
 
         new_value = simpledialog.askstring(
             f"Fix failed {arg_type} value",
             f"File : {file_name}:{lineno}\n"
             f"Code line: {code}\n"
-            f"Index: {param_index}\n"
+            f"Parameter index: {param_index}\n"
+            f"Parameter name: {param_name}\n"
             f"Current value: {old_value}\n"
             f"Enter correct {arg_type} value and click OK.\n"
             f"Or click OK, select {arg_type} value and press Ctrl.\n"

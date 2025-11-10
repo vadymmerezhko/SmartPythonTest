@@ -324,3 +324,75 @@ def get_effective_config_value(name: str, config: dict) -> str | None:
             return str(value)
 
     return None
+
+
+def get_parameter_name_by_index(code: str, index: int) -> str | None:
+    """
+    Find a function parameter name by its positional index, using
+    both the local file and imported modules.
+
+    Example:
+        get_parameter_name_by_index("login('user', 'pass')", 0)
+        → "user"
+    Supports class methods, static methods, free functions, and imported functions.
+    """
+    try:
+        # --- 1. Parse function call safely ---
+        tree = ast.parse(code.strip(), mode="eval")
+        if not isinstance(tree.body, ast.Call):
+            return None
+
+        func = tree.body.func
+        if isinstance(func, ast.Attribute):
+            func_name = func.attr
+        elif isinstance(func, ast.Name):
+            func_name = func.id
+        else:
+            return None
+
+        # --- 2. Locate the calling file ---
+        frame_filename = None
+        for frame_info in inspect.stack():
+            filename = frame_info.filename
+            if "/utils/" not in filename and "\\utils\\" not in filename:
+                if os.path.exists(filename):
+                    frame_filename = filename
+                    break
+        if not frame_filename:
+            return None
+
+        # --- 3. Try local file first ---
+        try:
+            with open(frame_filename, "r", encoding="utf-8") as f:
+                module = ast.parse(f.read())
+            for node in ast.walk(module):
+                if isinstance(node, ast.FunctionDef) and node.name == func_name:
+                    params = [a.arg for a in node.args.args]
+                    if params and params[0] == "self":
+                        params = params[1:]
+                    if 0 <= index < len(params):
+                        return params[index]
+        except Exception:
+            pass
+
+        # --- 4. If not found, search in imported modules ---
+        for mod_name, mod in list(sys.modules.items()):
+            try:
+                file_path = inspect.getsourcefile(mod)
+                if not file_path or not os.path.exists(file_path):
+                    continue
+                with open(file_path, "r", encoding="utf-8") as f:
+                    module = ast.parse(f.read())
+                for node in ast.walk(module):
+                    if isinstance(node, ast.FunctionDef) and node.name == func_name:
+                        params = [a.arg for a in node.args.args]
+                        if params and params[0] == "self":
+                            params = params[1:]
+                        if 0 <= index < len(params):
+                            return params[index]
+            except Exception:
+                continue
+
+        return None
+    except Exception:
+        return None

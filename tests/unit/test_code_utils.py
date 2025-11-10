@@ -3,7 +3,6 @@ import tempfile
 import textwrap
 import os
 import sys
-import types
 from utils.code_utils import (get_caller_info,
                               get_function_parameters_index_map,
                               update_value_in_function_call,
@@ -13,7 +12,8 @@ from utils.code_utils import (get_caller_info,
                               replace_variable_in_data_provider,
                               get_parameter_index_from_stack,
                               normalize_args,
-                              get_effective_config_value)
+                              get_effective_config_value,
+                              get_parameter_name_by_index)
 
 
 def helper_function():
@@ -685,3 +685,96 @@ def test_trims_cli_value(monkeypatch):
     result = get_effective_config_value("browser", config)
     assert result == "chrome"
 
+
+def write_temp_source(content: str) -> str:
+    """Helper to create a temporary Python file and return its path."""
+    fd, path = tempfile.mkstemp(suffix=".py")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(textwrap.dedent(content))
+    return path
+
+
+def test_class_method_parameter_name(monkeypatch):
+    source = """
+        class LoginPage:
+            def login(self, user, password):
+                return True
+        login_page = LoginPage()
+        login_page.login('some_user', 'some_password')
+    """
+    path = write_temp_source(source)
+
+    # Patch stack to pretend this file called the function
+    monkeypatch.setattr("inspect.stack", lambda: [type("f", (), {"filename": path})()])
+
+    result_user = get_parameter_name_by_index("login('some_user', 'some_password')", 0)
+    result_password = get_parameter_name_by_index("login('some_user', 'some_password')", 1)
+
+    assert result_user == "user"
+    assert result_password == "password"
+
+
+def test_static_method_parameter_name(monkeypatch):
+    source = """
+        class LoginPage:
+            @staticmethod
+            def login(user, password):
+                return True
+        LoginPage.login('a', 'b')
+    """
+    path = write_temp_source(source)
+    monkeypatch.setattr("inspect.stack", lambda: [type("f", (), {"filename": path})()])
+
+    result_user = get_parameter_name_by_index("login('a', 'b')", 0)
+    result_password = get_parameter_name_by_index("login('a', 'b')", 1)
+
+    assert result_user == "user"
+    assert result_password == "password"
+
+
+def test_free_function(monkeypatch):
+    source = """
+        def greet(name, age):
+            return f"Hello {name}, age {age}"
+        greet('John', 30)
+    """
+    path = write_temp_source(source)
+    monkeypatch.setattr("inspect.stack", lambda: [type("f", (), {"filename": path})()])
+
+    assert get_parameter_name_by_index("greet('John', 30)", 0) == "name"
+    assert get_parameter_name_by_index("greet('John', 30)", 1) == "age"
+
+
+def test_invalid_index(monkeypatch):
+    source = """
+        def login(user, password):
+            return True
+    """
+    path = write_temp_source(source)
+    monkeypatch.setattr("inspect.stack", lambda: [type("f", (), {"filename": path})()])
+
+    assert get_parameter_name_by_index("login('a', 'b')", 5) is None
+
+
+def test_invalid_code(monkeypatch):
+    source = """
+        def login(user, password):
+            return True
+    """
+    path = write_temp_source(source)
+    monkeypatch.setattr("inspect.stack", lambda: [type("f", (), {"filename": path})()])
+
+    # malformed expression should return None, not raise
+    assert get_parameter_name_by_index("not_a_function_call", 0) is None
+
+
+def test_missing_function(monkeypatch):
+    source = """
+        def logout(user):
+            return True
+    """
+    path = write_temp_source(source)
+    monkeypatch.setattr("inspect.stack", lambda: [type("f", (), {"filename": path})()])
+
+    # Function "login" not defined → expect None
+    assert get_parameter_name_by_index("login('a', 'b')", 0) is None
