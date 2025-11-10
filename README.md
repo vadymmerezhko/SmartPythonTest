@@ -1,6 +1,6 @@
 # Playwright Python Project
 
-Version: **1.8.0**
+Version: **1.9.0**
 
 This project uses [Playwright](https://playwright.dev/python/) for end-to-end testing of web applications.  
 It is written in Python and provides a foundation for building reliable, fast, and maintainable UI tests.
@@ -26,7 +26,7 @@ It is written in Python and provides a foundation for building reliable, fast, a
    ```bash
    git clone https://github.com/vadymmerezhko/SmartPythonTest.git
    
-2. Chge directory:
+2. Change directory:
 
     ```bash
     cd SmartPythonTest
