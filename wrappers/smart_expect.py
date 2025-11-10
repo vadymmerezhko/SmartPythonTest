@@ -87,7 +87,8 @@ class SmartExpect:
                 count = 0
 
             if count == 0:
-                fixed_locator = self._smart_locator._validate_locator()
+                fixed_locator = self._smart_locator._validate_locator(
+                    self._smart_locator._locator())
                 self._inner = pw_expect(fixed_locator)
                 target = getattr(self._inner, item)
 

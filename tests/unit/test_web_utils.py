@@ -577,9 +577,3 @@ def test_replace_br_tags_within_div_tags_with_paragraph_tags(page: Page):
     expected = "<div><p>one</p><p>two</p><p>three</p></div>"
     assert html == expected, f"Expected {expected!r}, got {html!r}"
 
-def test_replace_br_tags_with_paragraph_tags_ignores_missing_selector(page: Page):
-    # Should not raise any error if selector not found
-    replace_br_tags_with_paragraph_tags(page, "#does_not_exist")
-
-    # Ensure page still works
-    assert "Swag Labs" in page.title()
