@@ -79,9 +79,11 @@ class SmartLocator:
                 args, kwargs = normalize_args(target, *args, **kwargs)
                 # Validate None values and fix them if any
                 args, kwargs = self._validate_arguments(args, kwargs)
+                # Validate if selector is None or empty
+                locator = self._validate_locator(self._locator())
 
                 try:
-                    return target(*args, **kwargs)
+                    return getattr(locator, item)(*args, **kwargs)
                 except Exception:
                     new_locator, args, kwargs = self._handle_error(args, kwargs)
                     return getattr(new_locator, item)(*args, **kwargs)
@@ -159,3 +161,12 @@ class SmartLocator:
                     args = args[:0] + (new_value,) + args[1:]
 
         return new_locator, args, kwargs
+
+    def _validate_locator(self, locator):
+
+        if self.config.get("record_mode"):
+
+            if not self.selector or self.selector == "None":
+                return self._fix_locator()
+
+        return locator
