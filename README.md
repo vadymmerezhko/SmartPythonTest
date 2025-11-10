@@ -1,6 +1,6 @@
 # Playwright Python Project
 
-Version: **1.7.0**
+Version: **1.8.0**
 
 This project uses [Playwright](https://playwright.dev/python/) for end-to-end testing of web applications.  
 It is written in Python and provides a foundation for building reliable, fast, and maintainable UI tests.
@@ -25,13 +25,12 @@ It is written in Python and provides a foundation for building reliable, fast, a
 
    ```bash
    git clone https://github.com/vadymmerezhko/SmartPythonTest.git
-   cd SmartPythonTest
    
-2. Create a virtual env in your project root:
+2. Chge directory:
 
-   ```bash
-   python -m venv .venv
-   
+    ```bash
+    cd SmartPythonTest
+ 
 3. Download and install Python 3.x.x (latest stable version):
 
    ```bash
@@ -42,12 +41,12 @@ It is written in Python and provides a foundation for building reliable, fast, a
     ```bash
    python -m pip install --upgrade pip
 
-5. Install Playwright:
+5. Upgrade pip:
 
     ```bash
-    playwright install --with-deps
+    python -m pip install --upgrade pip 
 
-6. Activate it with Windows PowerShell:
+6. Activate virtual environment with Windows PowerShell:
 
    ```bash
    .venv\Scripts\Activate.ps1
@@ -62,47 +61,52 @@ It is written in Python and provides a foundation for building reliable, fast, a
    ```bash
    source .venv/bin/activate
 
-9. Install dependencies into this env:
+9. Install Playwright:
+
+    ```bash
+    playwright install --with-deps
+
+10. Install dependencies into this venv:
 
    ```bash
    pip install -r requirements.txt
 
-10. Run all tests:
+11. Run all tests:
 
    ```bash
    pytest
 
-11. Run all tests in test file:
+12. Run all tests in test file:
 
    ```bash
    pytest tests/test_login_demo.py
 
-12. Run specific test in test file:
+13. Run specific test in test file:
 
    ```bash
    pytest -k "test_login_with_valid_credentials"
-
-13. Show detailed logs in console:
+   
+14. Show detailed logs in console:
 
    ```bash
    pytest -v
-   
-14. Generate an HTML report:
+
+15. Generate an HTML report:
 
    ```bash
    pytest --html=report.html --self-contained-html
 
-15. Run tests in headed mode (see the browser window):
+16. Run tests in headed mode (see the browser window):
 
    ```bash
    pytest --headed
 
-16. Run tests in record mode for debug purpose:
+17. Run tests in record mode for debug purpose:
 
    ```bash
    pytest --record_mode=true
    
-17. Run tests on specific base URL:
+18. Run tests on specific base URL:
 
    ```bash
    pytest --base-url=https://staging.saucedemo.com/
