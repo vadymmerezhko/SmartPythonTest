@@ -80,14 +80,19 @@ class SmartLocator:
                 args, kwargs = self._validate_arguments(args, kwargs)
                 # Validate if selector is None or empty
                 locator = self._validate_locator(self._locator())
+                element_style = None
+                failed = False
 
                 try:
-                    self._highlight_element_with_delay(locator)
-
+                    element_style = self._highlight_element_with_delay()
                     return getattr(locator, item)(*args, **kwargs)
                 except Exception:
+                    failed = True
                     new_locator, args, kwargs = self._handle_error(args, kwargs)
                     return getattr(new_locator, item)(*args, **kwargs)
+                finally:
+                    if not failed:
+                        self._restore_element_style(element_style)
             return wrapper
         return target
 
@@ -172,7 +177,7 @@ class SmartLocator:
 
         return locator
 
-    def _highlight_element_with_delay(self, locator):
+    def _highlight_element_with_delay(self):
         step_delay_milliseconds = self.config.get("step_delay")
 
         try:
@@ -181,9 +186,15 @@ class SmartLocator:
             step_delay_seconds = 0.0
 
         if self.config.get("highlight"):
-            element_style = highlight_element(locator)
+            element_style = highlight_element(self._locator())
             time.sleep(step_delay_seconds)
-            reset_element_style(locator, element_style)
+            return element_style
 
         elif step_delay_seconds > 0.0:
             time.sleep(step_delay_seconds)
+
+    def _restore_element_style(self, element_style):
+
+        if self.config.get("highlight") and self.page.locator(self.selector).count() > 0:
+            if not element_style:
+                reset_element_style(self._locator(), element_style)

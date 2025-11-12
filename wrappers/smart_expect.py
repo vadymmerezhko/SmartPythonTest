@@ -42,17 +42,24 @@ class SmartExpect:
                 if self._smart_locator:
 
                     try:
+                        element_style = None
+                        failed = False
                         args, kwargs = normalize_args(target, *args, **kwargs)
                         args, kwargs = self._validate_arguments(args, kwargs)
-                        self._smart_locator._highlight_element_with_delay(self._smart_locator._locator())
+                        element_style = self._smart_locator._highlight_element_with_delay()
 
                         target = getattr(self._inner, item)
                         return target(*args, **kwargs)
 
                     except Exception as e:
+                        failed = True
                         target, args, kwargs = self._handle_error(item, target, args, kwargs, e)
                         # Retry with fixed expected value
                         return target(*args, **kwargs)
+                    finally:
+                        if not failed:
+                            self._smart_locator._restore_element_style(element_style)
+
             return wrapper
         return target
 

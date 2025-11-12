@@ -1,6 +1,6 @@
 # Playwright Python Project
 
-Version: **1.10.0**
+Version: **1.10.1**
 
 This project uses [Playwright](https://playwright.dev/python/) for end-to-end testing of web applications.  
 It is written in Python and provides a foundation for building reliable, fast, and maintainable UI tests.
@@ -120,3 +120,9 @@ It is written in Python and provides a foundation for building reliable, fast, a
 
    ```bash
    pytest --step_delay=500
+   
+21. Run tests and make screenshot after test failure and attach it to test report:
+
+   ```bash
+   pytest --screenshot_on_error=true
+

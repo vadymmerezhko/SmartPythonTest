@@ -56,13 +56,15 @@ jobs:
           mkdir -p reports/e2e
           xvfb-run -a pytest tests/e2e/ --html=reports/e2e/report.html --self-contained-html -v
 
-      # Always upload reports (even if tests fail)
-      - name: Upload test reports
+      # Always upload reports and screenshots (even if tests fail)
+      - name: Upload reports and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: all-test-reports
-          path: reports/
+          name: test-artifacts
+          path: |
+            reports/
+          retention-days: 7
 
   upload-reports:
     # This runs *after* the tests job, even if it fails

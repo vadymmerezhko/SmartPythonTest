@@ -11,7 +11,7 @@ def test_web_form_page(page, config):
     web_form_page = WebFormPage(page, config)
     # Verify web form default values
     web_form_page.goto(WEB_FORM_URL)
-    expect(web_form_page.header).to_have_text('Web form')
+    expect(web_form_page.header).to_have_text('Web form!')
     expect(web_form_page.disabled_input).to_have_value('')
     expect(web_form_page.readonly_input).to_have_value('Readonly input')
     expect(web_form_page.checkbox1).to_be_checked()

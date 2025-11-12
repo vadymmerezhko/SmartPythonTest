@@ -4,6 +4,7 @@
   "headless": true,
   "record_mode": false,
   "highlight": false,
+  "screenshot_on_error": true,
   "step_delay": 0,
   "timeout": 10000,
   "test_placeholder": "Add to cart"
