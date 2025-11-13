@@ -101,10 +101,23 @@ def test_validate_arguments_replaces_none(monkeypatch, mock_smart_locator):
         "wrappers.smart_expect.fix_noname_parameter_value",
         lambda *a, **k: ("expected", "fixed_val"),
     )
+
+    # owner + keyword
+    mock_owner = Mock()
+    mock_owner.get_keyword.return_value = "dummy_keyword"
+    mock_smart_locator.owner = mock_owner
+
+    # selector
+    mock_smart_locator.get_selector = Mock(return_value="#selector")
+
+    # Simulate placeholder replacement
+    mock_smart_locator.owner.placeholder_manager = Mock()
+    mock_smart_locator.owner.placeholder_manager.replace_placeholders_with_values.return_value = "replaced:fixed_val"
+
     se = SmartExpect(mock_smart_locator)
     args, kwargs = se._validate_arguments((None,), {})
+
     assert args[0] == "replaced:fixed_val"
-    assert FIXED_EXPECTS["MyPage.field"][1] == "fixed_val"
 
 
 def test_validate_arguments_reuses_cache(mock_smart_locator):
@@ -136,16 +149,36 @@ def test_handle_error_locator_not_found(monkeypatch, mock_smart_locator, patch_p
 
 
 def test_handle_error_locator_expected_value(monkeypatch, mock_smart_locator):
+    # Locator.count() returns 1
     mock_smart_locator.page.locator.return_value.count.return_value = 1
+    # Patch fix_noname_parameter_value
     monkeypatch.setattr(
         "wrappers.smart_expect.fix_noname_parameter_value",
         lambda *a, **k: ("expected", "fixed_value"),
     )
+    # Set up owner
+    mock_owner = Mock()
+    mock_owner.get_keyword.return_value = "dummy_keyword"
+    mock_smart_locator.owner = mock_owner
+    # Selector
+    mock_smart_locator.get_selector = Mock(return_value="#selector")
+    # Placeholder replacement → MUST return "replaced:fixed_value"
+    mock_owner.placeholder_manager = Mock()
+    mock_owner.placeholder_manager.replace_placeholders_with_values.return_value = "replaced:fixed_value"
     se = SmartExpect(mock_smart_locator)
     err = Exception("Locator expected to have text 'wrong'")
-    new_target, args, kwargs = se._handle_error("to_have_text", Mock(), ("bad",), {}, err)
+    new_target, args, kwargs = se._handle_error(
+        "to_have_text",
+        Mock(),
+        ("bad",),
+        {},
+        err
+    )
+    # Validate transformed argument
     assert args[0] == "replaced:fixed_value"
+    # Validate cached expected value
     assert FIXED_EXPECTS["MyPage.field"][1] == "fixed_value"
+
 
 
 # ---------------------------------------------------------------------

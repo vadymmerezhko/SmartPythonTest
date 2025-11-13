@@ -74,8 +74,10 @@ class SmartExpect:
                     args[i] = FIXED_EXPECTS[self.cache_key][1]
                 else:
                     if arg is None:
+                        keyword = self._smart_locator.owner.get_keyword()
                         update = fix_noname_parameter_value(
-                            EXPECTED_TYPE,self.page,0,"None",self.placeholder_manager)
+                            EXPECTED_TYPE,self.page,0,"None",
+                            keyword, self.placeholder_manager)
                         new_value = update[1]
                         FIXED_EXPECTS[self.cache_key] = update
                         args[i] = new_value
@@ -101,11 +103,13 @@ class SmartExpect:
                 target = getattr(self._inner, item)
 
             elif isinstance(args[0], str):
+
                 # Fix expected value
                 if args:
+                    keyword = self._smart_locator.owner.get_keyword()
                     update = fix_noname_parameter_value(
                         EXPECTED_TYPE, self.page, 0, str(args[0]),
-                        self.placeholder_manager)
+                        keyword, self.placeholder_manager)
                     new_value = update[1]
                     new_value = (self.placeholder_manager.
                                  replace_placeholders_with_values(new_value))

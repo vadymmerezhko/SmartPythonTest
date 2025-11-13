@@ -117,7 +117,8 @@ class SmartPage:
             else :
                 # Fix keyword None or empty value in record mode
                 update = fix_noname_parameter_value(
-                    KEYWORD_TYPE, self.page,0, str(self.keyword), self.placeholder_manager)
+                    KEYWORD_TYPE, self.page,0, str(self.keyword),
+                    self.keyword, self.placeholder_manager)
                 FIXED_KEYWORDS[self.cache_key] = update
                 self.keyword = update[1]
 
@@ -130,7 +131,8 @@ class SmartPage:
             else :
                 # Fix placeholder name None or empty value in record mode
                 name_update = fix_noname_parameter_value(
-                    PLACEHOLDER_NAME_TYPE, self.page,0, str(name), self.placeholder_manager)
+                    PLACEHOLDER_NAME_TYPE, self.page,0, str(name),
+                    self.keyword, self.placeholder_manager)
                 FIXED_PLACEHOLDER_NAMES[self.cache_key] = name_update
                 fixed_name = name_update[1]
 
@@ -145,7 +147,8 @@ class SmartPage:
             else:
                 # Fix placeholder value None or empty value in record mode
                 name_update = fix_noname_parameter_value(
-                    PLACEHOLDER_NAME_TYPE, self.page, 1, str(value), self.placeholder_manager)
+                    PLACEHOLDER_NAME_TYPE, self.page, 1, str(value),
+                    self.keyword, self.placeholder_manager)
                 FIXED_PLACEHOLDER_VALUES[self.cache_key] = name_update
                 fixed_value = name_update[1]
 
@@ -173,7 +176,8 @@ class SmartPage:
                         fixed_value = FIXED_PAGE_PARAMETERS[self.cache_key][1]
                     else:
                         update = fix_noname_parameter_value(
-                            parameter_type, self.page, i,"None", self.placeholder_manager)
+                            parameter_type, self.page, i,"None",
+                            self.keyword, self.placeholder_manager)
                         FIXED_PAGE_PARAMETERS[self.cache_key] = update
                         fixed_value = update[1]
 
@@ -210,7 +214,7 @@ class SmartPage:
 
         update = fix_noname_parameter_value(
             parameter_type, self.page, 0, parameter,
-            self.placeholder_manager)
+            self.keyword, self.placeholder_manager)
         new_value = update[1]
 
         if isinstance(new_value, str):

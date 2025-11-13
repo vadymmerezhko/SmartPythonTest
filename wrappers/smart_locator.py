@@ -139,8 +139,10 @@ class SmartLocator:
                         fixed_value = FIXED_VALUES[self.cache_key][1]
                         args[i] = fixed_value
                     else:
+                        keyword = self.owner.get_keyword()
                         update = fix_noname_parameter_value(
-                            PARAMETER_TYPE, self.page, i,"None", self.placeholder_manager)
+                            PARAMETER_TYPE, self.page, i,"None",
+                            keyword, self.placeholder_manager)
                         FIXED_VALUES[self.cache_key] = update
                         args[i] = update[1]
 
@@ -164,10 +166,12 @@ class SmartLocator:
             # Fix parameter
             elif args:
                 new_locator = self._locator()
+
                 if args:
+                    keyword = self.owner.get_keyword()
                     update = fix_noname_parameter_value(
                         PARAMETER_TYPE, self.page, 0, str(args[0]),
-                        self.placeholder_manager)
+                        keyword, self.placeholder_manager)
                     new_value = update[1]
                     new_value = (self.placeholder_manager.
                                  replace_placeholders_with_values(new_value))

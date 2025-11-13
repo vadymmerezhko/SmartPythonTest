@@ -125,7 +125,7 @@ def update_value_in_source_file(arg_type: str, file_path: str, lineno: int,
 
 def fix_value_in_file(arg_type: str, page: Page, file_path: str, lineno: int,
                       code: str, param_index: int, old_value: str,
-                      placeholder_manager: PlaceholderManager) -> tuple:
+                      keyword: str | None, placeholder_manager: PlaceholderManager) -> tuple:
 
     while True:
         file_name = os.path.basename(file_path)
@@ -137,6 +137,7 @@ def fix_value_in_file(arg_type: str, page: Page, file_path: str, lineno: int,
             f"Code line: {code}\n"
             f"Parameter index: {param_index}\n"
             f"Parameter name: {param_name}\n"
+            f"Keyword: {keyword}\n"
             f"Current value: {old_value}\n"
             f"Enter correct {arg_type} value and click OK.\n"
             f"Or click OK, select {arg_type} value and press Ctrl.\n"
@@ -157,6 +158,7 @@ def fix_value_in_file(arg_type: str, page: Page, file_path: str, lineno: int,
                 f"File: {file_name}:{lineno}\n"
                 f"Code line: {code}\n"
                 f"Index: {param_index}\n"
+                f"Keyword: {keyword}\n"
                 f"Old value: {old_value}\n"
                 f"New value: {new_value}\n"
                 "Click OK to confirm and save this value.\n"
@@ -175,7 +177,7 @@ def fix_value_in_file(arg_type: str, page: Page, file_path: str, lineno: int,
     return (update_type, new_value)
 
 def fix_noname_parameter_value(arg_type: str, page: Page, index: int, old_value: str,
-                               placeholder_manager: PlaceholderManager) -> tuple:
+                               keyword: str | None, placeholder_manager: PlaceholderManager) -> tuple:
     param_index = index
     in_stack_block = False
 
@@ -201,12 +203,13 @@ def fix_noname_parameter_value(arg_type: str, page: Page, index: int, old_value:
                     f"Line number: {lineno}\n"
                     f"Code line: {code}\n"
                     f"Index: {param_index}\n"
+                    f"Keyword: {keyword}\n"
                     "Or OK or Cancel to terminate record mode."
                 )
                 raise RuntimeError("Record mode interrupted by user.")
 
             return fix_value_in_file(arg_type, page, filename,lineno, code, param_index,
-                                     old_value, placeholder_manager)
+                                     old_value, keyword, placeholder_manager)
 
         if in_stack_block:
             # Get parameter id from function definition in the page object file.

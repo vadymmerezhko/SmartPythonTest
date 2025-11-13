@@ -21,7 +21,8 @@ def test_fix_value_in_file_positive(mock_update, mock_get, mock_select, mock_msg
     file_path = tmp_path / "test_file.py"
     file_path.write_text("print('Hello')")
 
-    result = fix_value_in_file("locator", page, str(file_path), 10, "code()", 1, "old", DummyPlaceholderManager())
+    result = fix_value_in_file("locator", page, str(file_path), 10, "code()", 1,
+                               "old", "Some keyword",  DummyPlaceholderManager())
 
     assert result == (UpdateType.INLINE, "fixed_value")
     mock_input.assert_called_once()
