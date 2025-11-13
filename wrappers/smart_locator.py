@@ -44,6 +44,7 @@ class SmartLocator:
         # Reuse fixed locator if already updated this session
         if self.cache_key in FIXED_SELECTORS:
             self.selector = FIXED_SELECTORS[self.cache_key]
+            print(f"Constructor - selector from cache: {self.selector}")
 
 
     def _get_field_info(self):
@@ -97,7 +98,7 @@ class SmartLocator:
         return target
 
     def __str__(self):
-        keyword = self.get_keyword()
+        keyword = self.owner.get_keyword()
 
         if self.selector and keyword:
             self.selector = self.selector.replace(KEYWORD_PLACEHOLDER, keyword)
@@ -112,9 +113,16 @@ class SmartLocator:
             self.page, self.cache_key, str(self.selector), keyword)
         update_source_file(
             self.source_file, self.field_name, self.cache_key, keyword, new_selector)
+        print(f"New selector: {new_selector}")
         new_locator = self.page.locator(new_selector)
+
+        if keyword:
+            new_selector = new_selector.replace(keyword, KEYWORD_PLACEHOLDER)
+
         # Update this instance + cache
         FIXED_SELECTORS[self.cache_key] = new_selector
+        self.selector = new_selector
+        print(f"Fixed selector from cache: {self.selector}")
 
         return new_locator
 
@@ -186,9 +194,12 @@ class SmartLocator:
             step_delay_seconds = 0.0
 
         if self.config.get("highlight"):
-            element_style = highlight_element(self._locator())
-            time.sleep(step_delay_seconds)
-            return element_style
+            try:
+                element_style = highlight_element(self._locator())
+                time.sleep(step_delay_seconds)
+                return element_style
+            except Exception:
+                pass # Ignore all exceptions
 
         elif step_delay_seconds > 0.0:
             time.sleep(step_delay_seconds)
