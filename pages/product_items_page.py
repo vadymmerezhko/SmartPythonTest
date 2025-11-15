@@ -10,5 +10,5 @@ class ProductItemsPage(SmartPage):
 
         # Locators
         self.header = SmartLocator(self, "div[class='app_logo']")
-        self.product_image = SmartLocator(self, "xpath=//div[@class='inventory_item'][.//*[normalize-space(text())='#KEYWORD']]//img[@class='inventory_item_img']")
-        self.product_price = SmartLocator(self, "xpath=//div[@class='inventory_item_description'][.//*[normalize-space(text())='#KEYWORD']]//div[@class='inventory_item_price']")
+        self.product_image = SmartLocator(self, "xpath=//div[@class='inventory_item'][.//*[normalize-space(text())='#KEYWORD#']]//img[@class='inventory_item_img']")
+        self.product_price = SmartLocator(self, "xpath=//div[@class='inventory_item_description'][.//*[normalize-space(text())='#KEYWORD#']]//div[@class='inventory_item_price']")

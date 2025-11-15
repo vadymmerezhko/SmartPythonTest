@@ -1,9 +1,15 @@
 # Playwright Python Project
 
-Version: **1.11.0**
+Version: **1.12.0**
 
 This project uses [Playwright](https://playwright.dev/python/) for end-to-end testing of web applications.  
 It is written in Python and provides a foundation for building reliable, fast, and maintainable UI tests.
+
+---
+
+## Video Presetation
+
+https://1drv.ms/v/c/f3e09cdd7322a355/Ee6mUFfqSJpAqlSsjK68AmsBOVi57ly2UwbC3it5kos5jg?e=k7QT93
 
 ---
 

@@ -5,7 +5,7 @@ from wrappers.smart_expect import expect
 
 @pytest.mark.parametrize("product,price", [
     ('Sauce Labs Bike Light', '$9.99'),
-    ('Sauce Labs Backpack', '$29.99')
+    ('Sauce Labs Backpack', '$29.99'),
 ])
 def test_product_items(page, config, product, price):
     username = 'standard_user'
