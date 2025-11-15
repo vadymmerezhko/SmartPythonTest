@@ -14,11 +14,11 @@ class InventoryPage(SmartPage):
         super().__init__(page, config)
         # Selectors
         self.header = SmartLocator(self, "div[class='app_logo']")
-        self.product_name = SmartLocator(self, "//*[normalize-space(text())='#KEYWORD']")
-        self.product_price = SmartLocator(self, "xpath=//div[@class='inventory_item_description'][.//*[normalize-space(text())='#KEYWORD']]//div[@class='inventory_item_price']")
-        self.product_image = SmartLocator(self, "xpath=//div[@class='inventory_item'][.//*[normalize-space(text())='#KEYWORD']]//img[@class='inventory_item_img']")
-        self.add_to_cart_button = SmartLocator(self, "xpath=//div[@class='inventory_item_description'][.//*[normalize-space(text())='#KEYWORD']]//button[@class='btn btn_primary btn_small btn_inventory ']")
-        self.cart_button = SmartLocator(self, "xpath=//div[.//*[normalize-space(text())='#KEYWORD']]//a[@class='shopping_cart_link']")
+        self.product_name = SmartLocator(self, "//*[normalize-space(text())='#KEYWORD#']")
+        self.product_price = SmartLocator(self, "xpath=//div[@class='inventory_item_description'][.//*[normalize-space(text())='#KEYWORD#']]//div[@class='inventory_item_price']")
+        self.product_image = SmartLocator(self, "xpath=//div[@class='inventory_item'][.//*[normalize-space(text())='#KEYWORD#']]//img[@class='inventory_item_img']")
+        self.add_to_cart_button = SmartLocator(self, "xpath=//div[@class='inventory_item_description'][.//*[normalize-space(text())='#KEYWORD#']]//button[@class='btn btn_primary btn_small btn_inventory ']")
+        self.cart_button = SmartLocator(self, "xpath=//div[.//*[normalize-space(text())='#KEYWORD#']]//a[@class='shopping_cart_link']")
         self.inventory_page_url = urljoin(config['demo_base_url'], 'inventory.html')
 
     def verify_page(self, button_text):
